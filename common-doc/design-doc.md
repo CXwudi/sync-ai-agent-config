@@ -78,12 +78,19 @@ The application follows a service-oriented architecture with dependency injectio
 
 ```mermaid
 classDiagram
-    %% Main orchestrator
+    %% Main entry point and DI setup
+    class Main {
+        +main() None
+        +setup_injector() Injector
+    }
+    
+    %% Main service orchestrator
     class SyncService {
         -cli_parser: CliParser
         -config_repo: ConfigRepository
         -backup_service: BackupService
         -restore_service: RestoreService
+        +__init__(cli_parser, config_repo, backup_service, restore_service)
         +run(args: List[str]) None
         +execute_backup() None
         +execute_restore() None
@@ -94,41 +101,51 @@ classDiagram
         +parse_args(args: List[str]) ParsedConfig
         +validate_args(config: ParsedConfig) None
         -create_parser() ArgumentParser
+        -add_backup_subcommand(parser) None
+        -add_restore_subcommand(parser) None
     }
     
     %% Stateful configuration repository
     class ConfigRepository {
+        -parsed_config: ParsedConfig
+        -backup_paths: BackupPaths
+        -restore_paths: RestorePaths
         +set_config(config: ParsedConfig) None
         +get_backup_paths() BackupPaths
         +get_restore_paths() RestorePaths
         +is_windows_backup_enabled() bool
         +get_remote_connection() RemoteConnection
+        -resolve_paths() None
     }
     
     %% Backup operations
     class BackupService {
-        -config_repo: ConfigRepository
         -exec_service: ExecService
         -path_validator: PathValidator
-        +backup_configs() None
-        +backup_linux_configs() None
-        +backup_windows_configs() None
+        +__init__(exec_service, path_validator)
+        +backup_configs(config_repo: ConfigRepository) None
+        +backup_linux_configs(paths: BackupPaths) None
+        +backup_windows_configs(paths: BackupPaths) None
+        +handle_claude_md_selection(config_repo) None
+        +handle_gemini_md_selection(config_repo) None
     }
     
     %% Restore operations
     class RestoreService {
-        -config_repo: ConfigRepository
         -exec_service: ExecService
         -path_validator: PathValidator
-        +restore_configs() None
-        +restore_linux_configs() None
-        +restore_windows_configs() None
+        +__init__(exec_service, path_validator)
+        +restore_configs(config_repo: ConfigRepository) None
+        +restore_linux_configs(paths: RestorePaths) None
+        +restore_windows_configs(paths: RestorePaths) None
     }
     
     %% Common execution service
     class ExecService {
         +execute_rsync(source: str, dest: str, options: RsyncOptions) RsyncResult
         +copy_file(source: str, dest: str) None
+        -build_rsync_command(source, dest, options) List[str]
+        -log_missing_file_warning(path: str) None
     }
     
     %% Path validation service
@@ -139,19 +156,105 @@ classDiagram
         +check_file_exists(path: str) bool
     }
     
+    %% Data models
+    class ParsedConfig {
+        +subcommand: str
+        +remote_host: str
+        +remote_path: str
+        +include_windows: bool
+        +windows_user: Optional[str]
+        +claude_env: str
+        +gemini_env: str
+        +force: bool
+        +dry_run: bool
+        +verbose: bool
+    }
+    
+    class BackupPaths {
+        +linux_claude_json: str
+        +linux_claude_md: str
+        +linux_gemini_settings: str
+        +linux_gemini_md: str
+        +windows_claude_json: Optional[str]
+        +windows_claude_md: Optional[str]
+        +windows_gemini_settings: Optional[str]
+        +windows_gemini_md: Optional[str]
+        +remote_base: str
+    }
+    
+    class RestorePaths {
+        +remote_claude_linux: str
+        +remote_claude_md: str
+        +remote_gemini_linux: str
+        +remote_gemini_md: str
+        +remote_claude_windows: Optional[str]
+        +remote_gemini_windows: Optional[str]
+        +local_base: str
+    }
+    
+    class RsyncOptions {
+        +archive: bool
+        +verbose: bool
+        +compress: bool
+        +update: bool
+        +dry_run: bool
+    }
+    
+    class RsyncResult {
+        +success: bool
+        +output: str
+        +error: str
+        +return_code: int
+    }
+    
+    class RemoteConnection {
+        +host: str
+        +path: str
+        +user: str
+    }
+    
+    %% DI Module (separate from business logic)
+    class DIModule {
+        <<Module>>
+        +provide_cli_parser() CliParser
+        +provide_config_repository() ConfigRepository  
+        +provide_backup_service() BackupService
+        +provide_restore_service() RestoreService
+        +provide_exec_service() ExecService
+        +provide_path_validator() PathValidator
+        +provide_sync_service() SyncService
+    }
+    
     %% Relationships
+    Main --> DIModule : creates
+    Main --> SyncService : runs
+    DIModule --> SyncService : provides
+    DIModule --> CliParser : provides
+    DIModule --> ConfigRepository : provides
+    DIModule --> BackupService : provides
+    DIModule --> RestoreService : provides
+    DIModule --> ExecService : provides
+    DIModule --> PathValidator : provides
+    
     SyncService --> CliParser : uses
     SyncService --> ConfigRepository : uses  
     SyncService --> BackupService : uses
     SyncService --> RestoreService : uses
     
-    BackupService --> ConfigRepository : uses
     BackupService --> ExecService : uses
     BackupService --> PathValidator : uses
-    
-    RestoreService --> ConfigRepository : uses
     RestoreService --> ExecService : uses
     RestoreService --> PathValidator : uses
+    
+    ConfigRepository --> ParsedConfig : contains
+    ConfigRepository --> BackupPaths : creates
+    ConfigRepository --> RestorePaths : creates
+    
+    ExecService --> RsyncOptions : uses
+    ExecService --> RsyncResult : returns
+    ExecService --> RemoteConnection : uses
+    
+    CliParser --> ParsedConfig : creates
 ```
 
 ### Key Design Patterns
