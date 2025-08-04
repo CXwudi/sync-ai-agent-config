@@ -37,3 +37,7 @@ Oh I just realize Gemini CLI also has a similar file of CLAUDE.md called GEMINI.
 Handling of GEMINI should follow exactly same of CLAUDE.md, including the choosing of which env to backup and overwrite another env
 
 when restoring, user can also use a flag to optionally restore windows env, but linux one is always restored
+
+by default, CLI program should avoid backing/restoring if the target file is newer, and provide a flag to force overwrite
+
+CLI program should check if source file exists, and if not, print a warning and skip
