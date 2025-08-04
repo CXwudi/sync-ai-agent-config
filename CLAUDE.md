@@ -33,5 +33,5 @@ This section is a simplified version of the [`common-doc/code-style.md`] file.
 - prefer composition over inheritance
 - Use dependency injection, `injector`
 - all injection goes to `di_module.py` file, with a class implementing the `Module` interface
-  - no DI related imports are allowed outside of `di_module.py`
+  - no DI related imports are allowed in business logic files
 - the `Module` interface only contains methods decorated with `@provider`
