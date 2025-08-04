@@ -134,7 +134,6 @@ classDiagram
     
     %% Path validation service
     class PathValidator {
-        -exec_service: ExecService
         +validate_source_exists(path: str) bool
         +validate_remote_connection(connection: RemoteConnection) bool
         +warn_if_missing(path: str) None
@@ -153,8 +152,6 @@ classDiagram
     RestoreService --> ConfigRepository : uses
     RestoreService --> ExecService : uses
     RestoreService --> PathValidator : uses
-    
-    PathValidator --> ExecService : uses
 ```
 
 ### Key Design Patterns
@@ -230,7 +227,7 @@ def validate_source_exists(self, path: str) -> bool:
     Returns:
         True if the file exists, False otherwise.
     """
-    if not self.exec_service.check_file_exists(path):
+    if not os.path.exists(path):
         logger.warning("Source file does not exist, skipping: %s", path)
         return False
     return True
