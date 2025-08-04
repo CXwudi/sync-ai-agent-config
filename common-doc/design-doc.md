@@ -134,6 +134,7 @@ classDiagram
     
     %% Path validation service
     class PathValidator {
+        -exec_service: ExecService
         +validate_source_exists(path: str) bool
         +validate_remote_connection(connection: RemoteConnection) bool
         +warn_if_missing(path: str) None
@@ -152,6 +153,8 @@ classDiagram
     RestoreService --> ConfigRepository : uses
     RestoreService --> ExecService : uses
     RestoreService --> PathValidator : uses
+    
+    PathValidator --> ExecService : uses
 ```
 
 ### Key Design Patterns
@@ -171,16 +174,16 @@ classDiagram
 - Gemini Settings: `~/.gemini/settings.json`
 - Gemini MD: `~/.gemini/GEMINI.md`
 
-#### Windows Environment (via WSL)
+#### Windows Environment (via Linux)
 - Claude JSON: `/mnt/c/Users/{username}/.claude.json`
 - Claude MD: `/mnt/c/Users/{username}/.claude/CLAUDE.md`
 - Gemini Settings: `/mnt/c/Users/{username}/.gemini/settings.json`
 - Gemini MD: `/mnt/c/Users/{username}/.gemini/GEMINI.md`
 
 #### Remote Server Naming Convention
-- `.claude.linux.json` / `.claude.window.json`
+- `.claude.linux.json` / `.claude.windows.json`
 - `CLAUDE.md` (primary environment selection)
-- `gemini.settings.wsl.json` / `gemini.settings.window.json`
+- `gemini.settings.linux.json` / `gemini.settings.windows.json`
 - `GEMINI.md` (primary environment selection)
 
 ### Rsync Configuration
@@ -217,8 +220,17 @@ rsync -avz <source> <destination>
 ### Source File Validation
 ```python
 def validate_source_exists(self, path: str) -> bool:
-    """Validate source file exists, warn if missing."""
-    if not os.path.exists(path):
+    """Validates that a source file exists.
+
+    If the file does not exist, a warning is logged.
+
+    Args:
+        path: The path to the file to validate.
+
+    Returns:
+        True if the file exists, False otherwise.
+    """
+    if not self.exec_service.check_file_exists(path):
         logger.warning("Source file does not exist, skipping: %s", path)
         return False
     return True
