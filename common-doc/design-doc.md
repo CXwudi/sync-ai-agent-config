@@ -129,7 +129,6 @@ classDiagram
     class ExecService {
         +execute_rsync(source: str, dest: str, options: RsyncOptions) RsyncResult
         +copy_file(source: str, dest: str) None
-        +check_file_exists(path: str) bool
     }
     
     %% Path validation service
@@ -137,6 +136,7 @@ classDiagram
         +validate_source_exists(path: str) bool
         +validate_remote_connection(connection: RemoteConnection) bool
         +warn_if_missing(path: str) None
+        +check_file_exists(path: str) bool
     }
     
     %% Relationships
