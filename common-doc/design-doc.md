@@ -46,8 +46,8 @@ sync-ai-config backup --remote-host <user@host> --remote-path <path> [options]
 **Optional Flags:**
 - `--include-windows` - Also backup Windows configs from `/mnt/c/`
 - `--windows-user <username>` - Windows username (required with `--include-windows`)
-- `--claude-env <linux|windows>` - CLAUDE.md environment to use as primary (default: current)
-- `--gemini-env <linux|windows>` - GEMINI.md environment to use as primary (default: current)
+- `--claude-env <linux|windows>` - CLAUDE.md environment to use as primary (default: linux)
+- `--gemini-env <linux|windows>` - GEMINI.md environment to use as primary (default: linux)
 - `--force` - Disable rsync `--update` mode, overwrite newer remote files
 - `--dry-run` - Show operations without executing
 - `--verbose` - Show detailed rsync output
