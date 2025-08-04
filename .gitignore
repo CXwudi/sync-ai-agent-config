@@ -209,3 +209,6 @@ logs/
 .env.production
 config/secrets.yml
 secrets/
+
+# Claude Code configuration (tracked in repo)
+# .claude/ - explicitly tracked for team consistency
