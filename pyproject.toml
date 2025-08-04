@@ -1,0 +1,17 @@
+[project]
+name = "sync-ai-agent-config"
+version = "0.1.0"
+description = "A small utility to synchronize AI agent configurations using rsync"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []
+
+[project.scripts]
+sync-main = "syncer.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/syncer"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
