@@ -1,6 +1,6 @@
 """Dependency injection configuration module."""
 from injector import Module, provider, singleton
-from .dummy import DummyCalculator
+from syncer.dummy import DummyCalculator
 
 
 class DIModule(Module):
