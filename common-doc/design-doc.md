@@ -241,8 +241,10 @@ classDiagram
     SyncService --> BackupService : uses
     SyncService --> RestoreService : uses
     
+    BackupService --> ConfigRepository : uses
     BackupService --> ExecService : uses
     BackupService --> PathValidator : uses
+    RestoreService --> ConfigRepository : uses
     RestoreService --> ExecService : uses
     RestoreService --> PathValidator : uses
     
