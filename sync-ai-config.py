@@ -1,0 +1,647 @@
+#!/usr/bin/env python3
+"""
+AI Configuration Sync Script
+Syncs AI agent configuration files between local machine and remote server
+"""
+
+import argparse
+import logging
+import os
+import subprocess
+import sys
+from dataclasses import dataclass
+from datetime import datetime
+from enum import Enum
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
+
+# ANSI color codes
+class Colors:
+  RED = '\033[0;31m'
+  GREEN = '\033[0;32m'
+  YELLOW = '\033[1;33m'
+  BLUE = '\033[0;34m'
+  NC = '\033[0m'  # No Color
+
+class Operation(Enum):
+  PUSH = "push"
+  PULL = "pull"
+
+@dataclass
+class Config:
+  """Configuration for sync operations"""
+  remote_user: Optional[str]
+  remote_host: Optional[str]
+  remote_base_dir: str
+  windows_user: Optional[str]
+
+  @property
+  def windows_user_dir(self) -> Optional[Path]:
+    if not self.windows_user:
+      return None
+    return Path(f"/mnt/c/Users/{self.windows_user}")
+
+  @property
+  def local_home(self) -> Path:
+    return Path.home()
+
+  @property
+  def remote_url(self) -> str:
+    if not self.remote_user or not self.remote_host:
+      raise ValueError("Remote user and host must be configured")
+    return f"{self.remote_user}@{self.remote_host}"
+
+  @classmethod
+  def from_args(cls, args: argparse.Namespace) -> 'Config':
+    """Create config from command line arguments with env var fallback
+
+    Priority: Command line args > Environment variables > Defaults
+    """
+    return cls(
+      remote_user=args.remote_user or os.getenv('SYNC_USER'),
+      remote_host=args.remote_host or os.getenv('SYNC_HOST'),
+      remote_base_dir=args.remote_dir or os.getenv('SYNC_DIR', '~/sync-files/ai-agents-related'),
+      windows_user=args.windows_user or os.getenv('WIN_USER')
+    )
+
+@dataclass
+class FileMapping:
+  """Represents a file sync mapping"""
+  local_path: Path
+  remote_name: str
+  description: str
+
+class ColoredFormatter(logging.Formatter):
+  """Custom formatter with colors"""
+
+  COLORS = {
+    'DEBUG': Colors.BLUE,
+    'INFO': Colors.BLUE,
+    'WARNING': Colors.YELLOW,
+    'ERROR': Colors.RED,
+    'CRITICAL': Colors.RED,
+  }
+
+  def format(self, record: logging.LogRecord):
+    log_color = self.COLORS.get(record.levelname, Colors.NC)
+
+    # Add symbols for different levels
+    symbols = {
+      'DEBUG': 'ℹ',
+      'INFO': 'ℹ',
+      'WARNING': '⚠',
+      'ERROR': '✗',
+      'CRITICAL': '✗',
+    }
+
+    symbol = symbols.get(record.levelname, '')
+    record.symbol = symbol
+
+    # Format the message with color
+    original_msg = record.msg
+    record.msg = f"{log_color}{symbol} {original_msg}{Colors.NC}"
+    result = super().format(record)
+    record.msg = original_msg  # Reset for file handler
+
+    return result
+
+class SyncManager:
+  """Manages AI configuration synchronization"""
+
+  def __init__(self, config: Config, dry_run: bool = False, verbose: bool = False, quiet: bool = False):
+    self.config = config
+    self.dry_run = dry_run
+    self.verbose = verbose
+    self.quiet = quiet
+    self.success_count = 0
+    self.fail_count = 0
+
+    # Setup logging
+    self._setup_logging()
+
+    # Setup file mappings
+    self.file_mappings = self._create_file_mappings()
+
+    # Rsync options
+    self.rsync_opts = ['-az', '--stats', '--human-readable']
+    if self.verbose:
+      self.rsync_opts.extend(['-v', '--progress'])
+    if self.quiet:
+      self.rsync_opts.append('-q')
+    if self.dry_run:
+      self.rsync_opts.append('--dry-run')
+
+  def _setup_logging(self) -> None:
+    """Setup logging configuration"""
+    self.logger = logging.getLogger('sync-ai-config')
+
+    # Set log level based on verbosity/quiet
+    if self.quiet:
+      self.logger.setLevel(logging.WARNING)
+    elif self.verbose:
+      self.logger.setLevel(logging.DEBUG)
+    else:
+      self.logger.setLevel(logging.INFO)
+
+    # Console handler with colors
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(ColoredFormatter('%(message)s'))
+    self.logger.addHandler(console_handler)
+
+    # File handler
+    log_file = Path.home() / '.sync-ai-config.log'
+    file_handler = logging.FileHandler(log_file)
+    file_formatter = logging.Formatter(
+      '%(asctime)s - %(levelname)s - %(message)s',
+      datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    file_handler.setFormatter(file_formatter)
+    self.logger.addHandler(file_handler)
+
+  def _create_file_mappings(self) -> List[FileMapping]:
+    """Create file mappings for sync operations"""
+    c = self.config
+
+    mappings = [
+      FileMapping(
+        c.local_home / '.claude.json',
+        '.claude.linux.json',
+        'Claude Linux config'
+      ),
+      FileMapping(
+        c.local_home / '.claude' / 'CLAUDE.md',
+        'CLAUDE.md',
+        'CLAUDE.md (WSL)'
+      ),
+      FileMapping(
+        c.local_home / '.gemini' / 'settings.json',
+        'gemini.settings.wsl.json',
+        'Gemini WSL settings'
+      ),
+      FileMapping(
+        c.local_home / '.gemini' / 'GEMINI.md',
+        'GEMINI.md',
+        'GEMINI.md (WSL)'
+      ),
+    ]
+
+    # Add Windows mappings only if Windows username is configured
+    if c.windows_user and c.windows_user_dir:
+      win_dir = c.windows_user_dir
+      mappings.extend([
+        FileMapping(
+          win_dir / '.claude.json',
+          '.claude.window.json',
+          'Claude Windows config'
+        ),
+        FileMapping(
+          win_dir / '.claude' / 'CLAUDE.md',
+          'CLAUDE.md',
+          'CLAUDE.md (Windows)'
+        ),
+        FileMapping(
+          win_dir / '.gemini' / 'settings.json',
+          'gemini.settings.window.json',
+          'Gemini Windows settings'
+        ),
+        FileMapping(
+          win_dir / '.gemini' / 'GEMINI.md',
+          'GEMINI.md',
+          'GEMINI.md (Windows)'
+        ),
+      ])
+
+    # Add script itself
+    script_path = Path(__file__).resolve()
+    mappings.append(
+      FileMapping(
+        script_path,
+        script_path.name,
+        'Sync script'
+      )
+    )
+
+    return mappings
+
+  def check_connectivity(self) -> bool:
+    """Check SSH connectivity to remote server"""
+    self.logger.info("Checking SSH connectivity to %s...", self.config.remote_url)
+
+    try:
+      result = subprocess.run(
+        ['ssh', '-o', 'ConnectTimeout=5', '-o', 'BatchMode=yes',
+        self.config.remote_url, 'echo', 'Connected'],
+        capture_output=True,
+        text=True,
+        timeout=10
+      )
+
+      if result.returncode == 0:
+        self.logger.info("%s✓ SSH connection successful%s", Colors.GREEN, Colors.NC)
+        return True
+      else:
+        self.logger.error("Cannot connect to %s", self.config.remote_url)
+        return False
+
+    except subprocess.TimeoutExpired:
+      self.logger.error("Connection timeout to %s", self.config.remote_url)
+      return False
+    except Exception as e:
+      self.logger.error("Connection error: %s", e)
+      return False
+
+  def setup_remote_dirs(self) -> None:
+    """Setup remote directory structure"""
+    self.logger.info("Setting up remote directory structure...")
+
+    try:
+      subprocess.run(
+        ['ssh', self.config.remote_url, f'mkdir -p {self.config.remote_base_dir}'],
+        check=True,
+        capture_output=True
+      )
+    except subprocess.CalledProcessError as e:
+      self.logger.warning("Failed to create remote directory: %s", e)
+
+  def ensure_local_dir(self, file_path: Path) -> None:
+    """Ensure local directory exists"""
+    dir_path = file_path.parent
+    if not dir_path.exists():
+      self.logger.debug("Creating directory: %s", dir_path)
+      dir_path.mkdir(parents=True, exist_ok=True)
+
+  def rsync_file(self, source: str, dest: str, description: str) -> bool:
+    """Execute rsync for a single file"""
+    self.logger.info("Syncing %s", description)
+    self.logger.debug("  From: %s", source)
+    self.logger.debug("  To: %s", dest)
+
+    try:
+      cmd = ['rsync'] + self.rsync_opts + [source, dest]
+      result = subprocess.run(cmd, capture_output=True, text=True)
+
+      if self.verbose and result.stdout:
+        print(result.stdout)
+
+      if result.returncode == 0:
+        self.logger.info("%s✓ Synced %s%s", Colors.GREEN, description, Colors.NC)
+        return True
+      else:
+        self.logger.error("Failed to sync %s: %s", description, result.stderr)
+        return False
+
+    except Exception as e:
+      self.logger.error("Error syncing %s: %s", description, e)
+      return False
+
+  def copy_file(self, source: Path, dest: Path, description: str) -> bool:
+    """Copy file locally"""
+    try:
+      if not source.exists():
+        self.logger.warning("Source file not found: %s", source)
+        return False
+
+      self.ensure_local_dir(dest)
+
+      import shutil
+      shutil.copy2(source, dest)
+      self.logger.info("Copied %s", description)
+      return True
+
+    except Exception as e:
+      self.logger.error("Failed to copy %s: %s", description, e)
+      return False
+
+  def create_backup(self, location: str = 'remote') -> None:
+    """Create backup before sync"""
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+    if location == 'remote':
+      backup_dir = f"{self.config.remote_base_dir}/backups/{timestamp}"
+      self.logger.info("Creating remote backup at %s...", backup_dir)
+
+      try:
+        subprocess.run(
+          ['ssh', self.config.remote_url,
+          f"mkdir -p {backup_dir} && "
+          f"cp {self.config.remote_base_dir}/*.json "
+          f"{self.config.remote_base_dir}/*.md "
+          f"{self.config.remote_base_dir}/*.py "
+          f"{self.config.remote_base_dir}/*.sh "
+          f"{backup_dir}/ 2>/dev/null || true"],
+          shell=False,
+          capture_output=True
+        )
+        self.logger.info("%s✓ Remote backup created%s", Colors.GREEN, Colors.NC)
+      except Exception as e:
+        self.logger.warning("Backup failed: %s", e)
+
+    else:  # local backup
+      backup_dir = self.config.local_home / '.ai-config-backups' / timestamp
+      backup_dir.mkdir(parents=True, exist_ok=True)
+
+      self.logger.info("Creating local backup at %s...", backup_dir)
+
+      for mapping in self.file_mappings:
+        if mapping.local_path.exists():
+          try:
+            dest_path = backup_dir / mapping.local_path.name
+            import shutil
+            shutil.copy2(mapping.local_path, dest_path)
+          except Exception as e:
+            self.logger.warning("Failed to backup %s: %s", mapping.local_path, e)
+
+      self.logger.info("%s✓ Local backup created%s", Colors.GREEN, Colors.NC)
+
+  def push(self) -> bool:
+    """Push configs to remote server"""
+    self.logger.info("Starting PUSH operation (local → remote)...")
+    self.success_count = 0
+    self.fail_count = 0
+
+    # Copy CLAUDE.md and GEMINI.md from Windows to WSL (if Windows user configured)
+    if self.config.windows_user_dir:
+      windows_claude = self.config.windows_user_dir / '.claude' / 'CLAUDE.md'
+      wsl_claude = self.config.local_home / '.claude' / 'CLAUDE.md'
+
+      if windows_claude.exists():
+        self.copy_file(windows_claude, wsl_claude, "CLAUDE.md from Windows to WSL")
+
+      windows_gemini = self.config.windows_user_dir / '.gemini' / 'GEMINI.md'
+      wsl_gemini = self.config.local_home / '.gemini' / 'GEMINI.md'
+
+      if windows_gemini.exists():
+        self.copy_file(windows_gemini, wsl_gemini, "GEMINI.md from Windows to WSL")
+
+    # Sync all files
+    for mapping in self.file_mappings:
+      # Skip Windows CLAUDE.md and GEMINI.md as we sync from WSL copies (if Windows configured)
+      if (self.config.windows_user_dir and 
+          mapping.local_path == self.config.windows_user_dir / '.claude' / 'CLAUDE.md'):
+        continue
+      if (self.config.windows_user_dir and 
+          mapping.local_path == self.config.windows_user_dir / '.gemini' / 'GEMINI.md'):
+        continue
+
+      if not mapping.local_path.exists():
+        self.logger.warning("File not found: %s", mapping.local_path)
+        self.fail_count += 1
+        continue
+
+      remote_path = f"{self.config.remote_url}:{self.config.remote_base_dir}/{mapping.remote_name}"
+
+      if self.rsync_file(str(mapping.local_path), remote_path, mapping.description):
+        self.success_count += 1
+      else:
+        self.fail_count += 1
+
+    self._print_summary("Push")
+    return self.fail_count == 0
+
+  def pull(self) -> bool:
+    """Pull configs from remote server"""
+    self.logger.info("Starting PULL operation (remote → local)...")
+    self.success_count = 0
+    self.fail_count = 0
+
+    # Define Linux pull operations (always included)
+    pull_ops = [
+      (f"{self.config.remote_base_dir}/.claude.linux.json",
+      self.config.local_home / '.claude.json',
+      "Claude Linux config"),
+
+      (f"{self.config.remote_base_dir}/CLAUDE.md",
+      self.config.local_home / '.claude' / 'CLAUDE.md',
+      "CLAUDE.md (WSL)"),
+
+      (f"{self.config.remote_base_dir}/gemini.settings.wsl.json",
+      self.config.local_home / '.gemini' / 'settings.json',
+      "Gemini WSL settings"),
+
+      (f"{self.config.remote_base_dir}/GEMINI.md",
+      self.config.local_home / '.gemini' / 'GEMINI.md',
+      "GEMINI.md (WSL)"),
+    ]
+
+    # Add Windows pull operations if Windows user is configured
+    if self.config.windows_user_dir:
+      pull_ops.extend([
+        (f"{self.config.remote_base_dir}/.claude.window.json",
+        self.config.windows_user_dir / '.claude.json',
+        "Claude Windows config"),
+
+        (f"{self.config.remote_base_dir}/CLAUDE.md",
+        self.config.windows_user_dir / '.claude' / 'CLAUDE.md',
+        "CLAUDE.md (Windows)"),
+
+        (f"{self.config.remote_base_dir}/gemini.settings.window.json",
+        self.config.windows_user_dir / '.gemini' / 'settings.json',
+        "Gemini Windows settings"),
+
+        (f"{self.config.remote_base_dir}/GEMINI.md",
+        self.config.windows_user_dir / '.gemini' / 'GEMINI.md',
+        "GEMINI.md (Windows)"),
+      ])
+
+    for remote_file, local_path, description in pull_ops:
+      self.ensure_local_dir(local_path)
+      remote_path = f"{self.config.remote_url}:{remote_file}"
+
+      if self.rsync_file(remote_path, str(local_path), description):
+        self.success_count += 1
+      else:
+        self.fail_count += 1
+
+    self._print_summary("Pull")
+    return self.fail_count == 0
+
+  def list_mappings(self) -> None:
+    """List all file mappings"""
+    self.logger.info("File Mappings:")
+    self.logger.info("═" * 50)
+
+    for mapping in self.file_mappings:
+      status = "✓" if mapping.local_path.exists() else "✗"
+      print(f"  [{status}] {mapping.local_path}")
+      print(f"      → {self.config.remote_base_dir}/{mapping.remote_name}")
+      print()
+
+  def show_config(self) -> None:
+    """Show current configuration"""
+    self.logger.info("Current Configuration:")
+    self.logger.info("═" * 50)
+    self.logger.info("  Remote User: %s", self.config.remote_user)
+    self.logger.info("  Remote Host: %s", self.config.remote_host)
+    self.logger.info("  Remote Dir:  %s", self.config.remote_base_dir)
+    self.logger.info("  Windows User: %s", self.config.windows_user or "Not configured")
+    win_dir = self.config.windows_user_dir
+    self.logger.info("  Windows Dir: %s", win_dir if win_dir else "Not configured")
+    self.logger.info("═" * 50)
+
+  def _print_summary(self, operation: str) -> None:
+    """Print operation summary"""
+    self.logger.info("═" * 50)
+    self.logger.info(
+      "%s Summary: %d succeeded, %d failed", operation, self.success_count, self.fail_count
+    )
+
+    if self.dry_run:
+      self.logger.info("Dry run completed - no files were actually transferred")
+
+def main():
+  parser = argparse.ArgumentParser(
+    description='Sync AI agent configuration files between local machine and remote server',
+    formatter_class=argparse.RawDescriptionHelpFormatter,
+    epilog="""
+EXAMPLES:
+  %(prog)s push                       # Push configs to remote
+  %(prog)s pull                       # Pull configs from remote
+  %(prog)s -n push                    # Dry run push
+  %(prog)s -vb pull                   # Verbose pull with backup
+  %(prog)s --list                     # List file mappings
+  %(prog)s --config                   # Show current configuration
+
+  # With custom settings (override env vars)
+  %(prog)s --remote-user username --remote-host server.example.com push
+  %(prog)s --windows-user myuser pull
+  %(prog)s -u username -H 192.168.1.100 -d ~/configs push
+
+CONFIGURATION PRIORITY:
+  Command line arguments > Environment variables > Required
+
+ENVIRONMENT VARIABLES:
+  SYNC_USER    Remote username (required if not specified via --remote-user)
+  SYNC_HOST    Remote host (required if not specified via --remote-host)
+  SYNC_DIR     Remote directory (default: ~/sync-files/ai-agents-related)
+  WIN_USER     Windows username (optional - enables Windows file operations)
+    """
+  )
+
+  parser.add_argument('operation', nargs='?', default='push',
+           choices=['push', 'pull'],
+           help='Operation to perform (default: push)')
+
+# Remote configuration
+  remote_group = parser.add_argument_group('remote configuration')
+  remote_group.add_argument('-u', '--remote-user', 
+              help='Remote SSH username (overrides SYNC_USER)')
+  remote_group.add_argument('-H', '--remote-host',
+              help='Remote SSH host (overrides SYNC_HOST)')
+  remote_group.add_argument('-d', '--remote-dir',
+              help='Remote directory path (overrides SYNC_DIR)')
+
+  # Local configuration
+  local_group = parser.add_argument_group('local configuration')
+  local_group.add_argument('-w', '--windows-user',
+             help='Windows username (optional - enables Windows file sync)')
+
+  # Operation options
+  op_group = parser.add_argument_group('operation options')
+  op_group.add_argument('-v', '--verbose', action='store_true',
+            help='Enable verbose output')
+  op_group.add_argument('-q', '--quiet', action='store_true',
+            help='Suppress non-error output')
+  op_group.add_argument('-n', '--dry-run', action='store_true',
+            help='Perform a dry run (show what would be synced)')
+  op_group.add_argument('-b', '--backup', action='store_true',
+            help='Create timestamped backup before syncing')
+
+  # Info options
+  info_group = parser.add_argument_group('information options')
+  info_group.add_argument('-c', '--check', action='store_true',
+             help='Only check connectivity')
+  info_group.add_argument('-l', '--list', action='store_true',
+             help='List all file mappings')
+  info_group.add_argument('--config', action='store_true',
+             help='Show current configuration')
+  info_group.add_argument('--version', action='version', 
+             version='%(prog)s 2.1.0')
+
+  args = parser.parse_args()
+
+  # Validate quiet and verbose are not both set
+  if args.quiet and args.verbose:
+    parser.error("--quiet and --verbose are mutually exclusive")
+
+  # Initialize configuration from args (with env var fallback)
+  config = Config.from_args(args)
+
+  # Validate required configuration (skip for info-only operations)
+  if not (args.list or args.config):
+    missing_params: List[str] = []
+    if not config.remote_user:
+      missing_params.append("remote username (use --remote-user or set SYNC_USER)")
+    if not config.remote_host:
+      missing_params.append("remote host (use --remote-host or set SYNC_HOST)")
+
+    if missing_params:
+      parser.error(f"Missing required configuration: {', '.join(missing_params)}")
+
+  # Initialize sync manager
+  manager = SyncManager(config, dry_run=args.dry_run, 
+            verbose=args.verbose, quiet=args.quiet)
+
+  try:
+    # Show config if requested
+    if args.config:
+      manager.show_config()
+      return 0
+
+    # List mappings if requested
+    if args.list:
+      manager.list_mappings()
+      return 0
+
+    # Print header
+    if not args.quiet:
+      manager.logger.info("═" * 50)
+      manager.logger.info("AI Config Sync Started")
+      manager.logger.info("Operation: %s", args.operation.upper())
+      manager.logger.info("Remote: %s", config.remote_url)
+      manager.logger.info("Remote Dir: %s", config.remote_base_dir)
+      manager.logger.info("Windows User: %s", config.windows_user)
+
+    # Check connectivity
+    if not manager.check_connectivity():
+      return 1
+
+    # Check only mode
+    if args.check:
+      manager.logger.info("Connectivity check passed.")
+      return 0
+
+    # Create backup if requested
+    if args.backup and not args.dry_run:
+      if args.operation == 'push':
+        manager.create_backup('remote')
+      else:
+        manager.create_backup('local')
+
+    # Setup remote dirs for push
+    if args.operation == 'push':
+      manager.setup_remote_dirs()
+
+    # Perform operation
+    if args.operation == 'push':
+      success = manager.push()
+    else:
+      success = manager.pull()
+
+    if not args.quiet:
+      manager.logger.info("AI Config Sync Completed")
+      manager.logger.info("═" * 50)
+
+    return 0 if success else 1
+
+  except KeyboardInterrupt:
+    manager.logger.error("\nOperation cancelled by user")
+    return 130
+  except Exception as e:
+    manager.logger.error("Unexpected error: %s", e)
+    if args.verbose:
+      import traceback
+      traceback.print_exc()
+    return 1
+
+if __name__ == '__main__':
+  sys.exit(main())

@@ -1,0 +1,29 @@
+name: Validate Script
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.12"
+        
+    - name: Check script syntax
+      run: |
+        python -m py_compile sync-ai-config.py
+        
+    - name: Validate script help
+      run: |
+        python sync-ai-config.py --help
