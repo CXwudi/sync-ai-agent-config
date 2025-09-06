@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional
 
 # ANSI color codes
 class Colors:
@@ -105,48 +105,32 @@ class ColoredFormatter(logging.Formatter):
 
     return result
 
-class SyncManager:
-  """Manages AI configuration synchronization"""
+class LoggingService:
+  """Handles all logging configuration and setup"""
 
-  def __init__(self, config: Config, dry_run: bool = False, verbose: bool = False, quiet: bool = False):
-    self.config = config
-    self.dry_run = dry_run
-    self.verbose = verbose
-    self.quiet = quiet
-    self.success_count = 0
-    self.fail_count = 0
+  def __init__(self, name: str, verbose: bool = False, quiet: bool = False):
+    self.logger = self._setup_logger(name, verbose, quiet)
 
-    # Setup logging
-    self._setup_logging()
+  def get_logger(self) -> logging.Logger:
+    """Get the configured logger instance"""
+    return self.logger
 
-    # Setup file mappings
-    self.file_mappings = self._create_file_mappings()
-
-    # Rsync options
-    self.rsync_opts = ['-az', '--stats', '--human-readable']
-    if self.verbose:
-      self.rsync_opts.extend(['-v', '--progress'])
-    if self.quiet:
-      self.rsync_opts.append('-q')
-    if self.dry_run:
-      self.rsync_opts.append('--dry-run')
-
-  def _setup_logging(self) -> None:
+  def _setup_logger(self, name: str, verbose: bool, quiet: bool) -> logging.Logger:
     """Setup logging configuration"""
-    self.logger = logging.getLogger('sync-ai-config')
+    logger = logging.getLogger(name)
 
     # Set log level based on verbosity/quiet
-    if self.quiet:
-      self.logger.setLevel(logging.WARNING)
-    elif self.verbose:
-      self.logger.setLevel(logging.DEBUG)
+    if quiet:
+      logger.setLevel(logging.WARNING)
+    elif verbose:
+      logger.setLevel(logging.DEBUG)
     else:
-      self.logger.setLevel(logging.INFO)
+      logger.setLevel(logging.INFO)
 
     # Console handler with colors
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(ColoredFormatter('%(message)s'))
-    self.logger.addHandler(console_handler)
+    logger.addHandler(console_handler)
 
     # File handler
     log_file = Path.home() / '.sync-ai-config.log'
@@ -156,9 +140,71 @@ class SyncManager:
       datefmt='%Y-%m-%d %H:%M:%S'
     )
     file_handler.setFormatter(file_formatter)
-    self.logger.addHandler(file_handler)
+    logger.addHandler(file_handler)
 
-  def _create_file_mappings(self) -> List[FileMapping]:
+    return logger
+
+class ProgressReporter:
+  """Handles user interface and progress reporting"""
+
+  def __init__(self, logger: logging.Logger):
+    self.logger = logger
+    self.success_count = 0
+    self.fail_count = 0
+
+  def track_success(self) -> None:
+    """Track successful operation"""
+    self.success_count += 1
+
+  def track_failure(self) -> None:
+    """Track failed operation"""
+    self.fail_count += 1
+
+  def print_summary(self, operation: str, dry_run: bool = False) -> None:
+    """Print operation summary"""
+    self.logger.info("═" * 50)
+    self.logger.info(
+      "%s Summary: %d succeeded, %d failed", operation, self.success_count, self.fail_count
+    )
+
+    if dry_run:
+      self.logger.info("Dry run completed - no files were actually transferred")
+
+  def show_config(self, config: Config) -> None:
+    """Show current configuration"""
+    self.logger.info("Current Configuration:")
+    self.logger.info("═" * 50)
+    self.logger.info("  Remote User: %s", config.remote_user)
+    self.logger.info("  Remote Host: %s", config.remote_host)
+    self.logger.info("  Remote Dir:  %s", config.remote_base_dir)
+    self.logger.info("  Windows User: %s", config.windows_user or "Not configured")
+    win_dir = config.windows_user_dir
+    self.logger.info("  Windows Dir: %s", win_dir if win_dir else "Not configured")
+    self.logger.info("═" * 50)
+
+  def list_mappings(self, mappings: List[FileMapping], config: Config) -> None:
+    """List all file mappings"""
+    self.logger.info("File Mappings:")
+    self.logger.info("═" * 50)
+
+    for mapping in mappings:
+      status = "✓" if mapping.local_path.exists() else "✗"
+      print(f"  [{status}] {mapping.local_path}")
+      print(f"      → {config.remote_base_dir}/{mapping.remote_name}")
+      print()
+
+  def reset_counters(self) -> None:
+    """Reset success and failure counters"""
+    self.success_count = 0
+    self.fail_count = 0
+
+class FileMappingProvider:
+  """Provides file mapping configurations based on system setup"""
+
+  def __init__(self, config: Config):
+    self.config = config
+
+  def get_mappings(self) -> List[FileMapping]:
     """Create file mappings for sync operations"""
     c = self.config
 
@@ -223,6 +269,14 @@ class SyncManager:
 
     return mappings
 
+class RemoteOperations:
+  """Handles all remote server interactions via SSH and rsync"""
+
+  def __init__(self, config: Config, rsync_opts: List[str], logger: logging.Logger):
+    self.config = config
+    self.rsync_opts = rsync_opts
+    self.logger = logger
+
   def check_connectivity(self) -> bool:
     """Check SSH connectivity to remote server"""
     self.logger.info("Checking SSH connectivity to %s...", self.config.remote_url)
@@ -250,27 +304,22 @@ class SyncManager:
       self.logger.error("Connection error: %s", e)
       return False
 
-  def setup_remote_dirs(self) -> None:
+  def ensure_remote_directory(self, path: str) -> bool:
     """Setup remote directory structure"""
     self.logger.info("Setting up remote directory structure...")
 
     try:
       subprocess.run(
-        ['ssh', self.config.remote_url, f'mkdir -p {self.config.remote_base_dir}'],
+        ['ssh', self.config.remote_url, f'mkdir -p {path}'],
         check=True,
         capture_output=True
       )
+      return True
     except subprocess.CalledProcessError as e:
       self.logger.warning("Failed to create remote directory: %s", e)
+      return False
 
-  def ensure_local_dir(self, file_path: Path) -> None:
-    """Ensure local directory exists"""
-    dir_path = file_path.parent
-    if not dir_path.exists():
-      self.logger.debug("Creating directory: %s", dir_path)
-      dir_path.mkdir(parents=True, exist_ok=True)
-
-  def rsync_file(self, source: str, dest: str, description: str) -> bool:
+  def sync_file(self, source: str, dest: str, description: str) -> bool:
     """Execute rsync for a single file"""
     self.logger.info("Syncing %s", description)
     self.logger.debug("  From: %s", source)
@@ -280,7 +329,7 @@ class SyncManager:
       cmd = ['rsync'] + self.rsync_opts + [source, dest]
       result = subprocess.run(cmd, capture_output=True, text=True)
 
-      if self.verbose and result.stdout:
+      if '--verbose' in self.rsync_opts and result.stdout:
         print(result.stdout)
 
       if result.returncode == 0:
@@ -294,6 +343,19 @@ class SyncManager:
       self.logger.error("Error syncing %s: %s", description, e)
       return False
 
+class LocalFileOperations:
+  """Handles local file system operations"""
+
+  def __init__(self, logger: logging.Logger):
+    self.logger = logger
+
+  def ensure_directory(self, file_path: Path) -> None:
+    """Ensure local directory exists"""
+    dir_path = file_path.parent
+    if not dir_path.exists():
+      self.logger.debug("Creating directory: %s", dir_path)
+      dir_path.mkdir(parents=True, exist_ok=True)
+
   def copy_file(self, source: Path, dest: Path, description: str) -> bool:
     """Copy file locally"""
     try:
@@ -301,7 +363,7 @@ class SyncManager:
         self.logger.warning("Source file not found: %s", source)
         return False
 
-      self.ensure_local_dir(dest)
+      self.ensure_directory(dest)
 
       import shutil
       shutil.copy2(source, dest)
@@ -312,69 +374,109 @@ class SyncManager:
       self.logger.error("Failed to copy %s: %s", description, e)
       return False
 
-  def create_backup(self, location: str = 'remote') -> None:
-    """Create backup before sync"""
+  def file_exists(self, path: Path) -> bool:
+    """Check if file exists"""
+    return path.exists()
+
+class BackupManager:
+  """Manages backup operations for both local and remote files"""
+
+  def __init__(self, config: Config, remote_ops: RemoteOperations, 
+               local_ops: LocalFileOperations, logger: logging.Logger):
+    self.config = config
+    self.remote_ops = remote_ops
+    self.local_ops = local_ops
+    self.logger = logger
+
+  def create_remote_backup(self) -> bool:
+    """Create backup on remote server"""
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    backup_dir = f"{self.config.remote_base_dir}/backups/{timestamp}"
+    self.logger.info("Creating remote backup at %s...", backup_dir)
 
-    if location == 'remote':
-      backup_dir = f"{self.config.remote_base_dir}/backups/{timestamp}"
-      self.logger.info("Creating remote backup at %s...", backup_dir)
+    try:
+      subprocess.run(
+        ['ssh', self.config.remote_url,
+        f"mkdir -p {backup_dir} && "
+        f"cp {self.config.remote_base_dir}/*.json "
+        f"{self.config.remote_base_dir}/*.md "
+        f"{self.config.remote_base_dir}/*.py "
+        f"{self.config.remote_base_dir}/*.sh "
+        f"{backup_dir}/ 2>/dev/null || true"],
+        shell=False,
+        capture_output=True
+      )
+      self.logger.info("%s✓ Remote backup created%s", Colors.GREEN, Colors.NC)
+      return True
+    except Exception as e:
+      self.logger.warning("Backup failed: %s", e)
+      return False
 
-      try:
-        subprocess.run(
-          ['ssh', self.config.remote_url,
-          f"mkdir -p {backup_dir} && "
-          f"cp {self.config.remote_base_dir}/*.json "
-          f"{self.config.remote_base_dir}/*.md "
-          f"{self.config.remote_base_dir}/*.py "
-          f"{self.config.remote_base_dir}/*.sh "
-          f"{backup_dir}/ 2>/dev/null || true"],
-          shell=False,
-          capture_output=True
-        )
-        self.logger.info("%s✓ Remote backup created%s", Colors.GREEN, Colors.NC)
-      except Exception as e:
-        self.logger.warning("Backup failed: %s", e)
+  def create_local_backup(self, mappings: List[FileMapping]) -> bool:
+    """Create backup of local files"""
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    backup_dir = self.config.local_home / '.ai-config-backups' / timestamp
+    backup_dir.mkdir(parents=True, exist_ok=True)
 
-    else:  # local backup
-      backup_dir = self.config.local_home / '.ai-config-backups' / timestamp
-      backup_dir.mkdir(parents=True, exist_ok=True)
+    self.logger.info("Creating local backup at %s...", backup_dir)
 
-      self.logger.info("Creating local backup at %s...", backup_dir)
+    success = True
+    for mapping in mappings:
+      if mapping.local_path.exists():
+        try:
+          dest_path = backup_dir / mapping.local_path.name
+          import shutil
+          shutil.copy2(mapping.local_path, dest_path)
+        except Exception as e:
+          self.logger.warning("Failed to backup %s: %s", mapping.local_path, e)
+          success = False
 
-      for mapping in self.file_mappings:
-        if mapping.local_path.exists():
-          try:
-            dest_path = backup_dir / mapping.local_path.name
-            import shutil
-            shutil.copy2(mapping.local_path, dest_path)
-          except Exception as e:
-            self.logger.warning("Failed to backup %s: %s", mapping.local_path, e)
-
+    if success:
       self.logger.info("%s✓ Local backup created%s", Colors.GREEN, Colors.NC)
+    return success
+
+class SyncManager:
+  """Manages AI configuration synchronization"""
+
+  def __init__(self, config: Config, logging_service: LoggingService, 
+               progress_reporter: ProgressReporter, file_mapping_provider: FileMappingProvider,
+               remote_ops: RemoteOperations, local_ops: LocalFileOperations, 
+               backup_manager: BackupManager, dry_run: bool = False):
+    self.config = config
+    self.dry_run = dry_run
+    self.logger = logging_service.get_logger()
+    self.progress_reporter = progress_reporter
+    self.file_mapping_provider = file_mapping_provider
+    self.remote_ops = remote_ops
+    self.local_ops = local_ops
+    self.backup_manager = backup_manager
+
+  def check_connectivity(self) -> bool:
+    """Check SSH connectivity to remote server"""
+    return self.remote_ops.check_connectivity()
 
   def push(self) -> bool:
     """Push configs to remote server"""
     self.logger.info("Starting PUSH operation (local → remote)...")
-    self.success_count = 0
-    self.fail_count = 0
+    self.progress_reporter.reset_counters()
 
     # Copy CLAUDE.md and GEMINI.md from Windows to WSL (if Windows user configured)
     if self.config.windows_user_dir:
       windows_claude = self.config.windows_user_dir / '.claude' / 'CLAUDE.md'
       wsl_claude = self.config.local_home / '.claude' / 'CLAUDE.md'
 
-      if windows_claude.exists():
-        self.copy_file(windows_claude, wsl_claude, "CLAUDE.md from Windows to WSL")
+      if self.local_ops.file_exists(windows_claude):
+        self.local_ops.copy_file(windows_claude, wsl_claude, "CLAUDE.md from Windows to WSL")
 
       windows_gemini = self.config.windows_user_dir / '.gemini' / 'GEMINI.md'
       wsl_gemini = self.config.local_home / '.gemini' / 'GEMINI.md'
 
-      if windows_gemini.exists():
-        self.copy_file(windows_gemini, wsl_gemini, "GEMINI.md from Windows to WSL")
+      if self.local_ops.file_exists(windows_gemini):
+        self.local_ops.copy_file(windows_gemini, wsl_gemini, "GEMINI.md from Windows to WSL")
 
     # Sync all files
-    for mapping in self.file_mappings:
+    mappings = self.file_mapping_provider.get_mappings()
+    for mapping in mappings:
       # Skip Windows CLAUDE.md and GEMINI.md as we sync from WSL copies (if Windows configured)
       if (self.config.windows_user_dir and 
           mapping.local_path == self.config.windows_user_dir / '.claude' / 'CLAUDE.md'):
@@ -383,26 +485,25 @@ class SyncManager:
           mapping.local_path == self.config.windows_user_dir / '.gemini' / 'GEMINI.md'):
         continue
 
-      if not mapping.local_path.exists():
+      if not self.local_ops.file_exists(mapping.local_path):
         self.logger.warning("File not found: %s", mapping.local_path)
-        self.fail_count += 1
+        self.progress_reporter.track_failure()
         continue
 
       remote_path = f"{self.config.remote_url}:{self.config.remote_base_dir}/{mapping.remote_name}"
 
-      if self.rsync_file(str(mapping.local_path), remote_path, mapping.description):
-        self.success_count += 1
+      if self.remote_ops.sync_file(str(mapping.local_path), remote_path, mapping.description):
+        self.progress_reporter.track_success()
       else:
-        self.fail_count += 1
+        self.progress_reporter.track_failure()
 
-    self._print_summary("Push")
-    return self.fail_count == 0
+    self.progress_reporter.print_summary("Push", self.dry_run)
+    return self.progress_reporter.fail_count == 0
 
   def pull(self) -> bool:
     """Pull configs from remote server"""
     self.logger.info("Starting PULL operation (remote → local)...")
-    self.success_count = 0
-    self.fail_count = 0
+    self.progress_reporter.reset_counters()
 
     # Define Linux pull operations (always included)
     pull_ops = [
@@ -444,51 +545,28 @@ class SyncManager:
       ])
 
     for remote_file, local_path, description in pull_ops:
-      self.ensure_local_dir(local_path)
+      self.local_ops.ensure_directory(local_path)
       remote_path = f"{self.config.remote_url}:{remote_file}"
 
-      if self.rsync_file(remote_path, str(local_path), description):
-        self.success_count += 1
+      if self.remote_ops.sync_file(remote_path, str(local_path), description):
+        self.progress_reporter.track_success()
       else:
-        self.fail_count += 1
+        self.progress_reporter.track_failure()
 
-    self._print_summary("Pull")
-    return self.fail_count == 0
+    self.progress_reporter.print_summary("Pull", self.dry_run)
+    return self.progress_reporter.fail_count == 0
 
   def list_mappings(self) -> None:
     """List all file mappings"""
-    self.logger.info("File Mappings:")
-    self.logger.info("═" * 50)
-
-    for mapping in self.file_mappings:
-      status = "✓" if mapping.local_path.exists() else "✗"
-      print(f"  [{status}] {mapping.local_path}")
-      print(f"      → {self.config.remote_base_dir}/{mapping.remote_name}")
-      print()
+    mappings = self.file_mapping_provider.get_mappings()
+    self.progress_reporter.list_mappings(mappings, self.config)
 
   def show_config(self) -> None:
     """Show current configuration"""
-    self.logger.info("Current Configuration:")
-    self.logger.info("═" * 50)
-    self.logger.info("  Remote User: %s", self.config.remote_user)
-    self.logger.info("  Remote Host: %s", self.config.remote_host)
-    self.logger.info("  Remote Dir:  %s", self.config.remote_base_dir)
-    self.logger.info("  Windows User: %s", self.config.windows_user or "Not configured")
-    win_dir = self.config.windows_user_dir
-    self.logger.info("  Windows Dir: %s", win_dir if win_dir else "Not configured")
-    self.logger.info("═" * 50)
+    self.progress_reporter.show_config(self.config)
 
-  def _print_summary(self, operation: str) -> None:
-    """Print operation summary"""
-    self.logger.info("═" * 50)
-    self.logger.info(
-      "%s Summary: %d succeeded, %d failed", operation, self.success_count, self.fail_count
-    )
-
-    if self.dry_run:
-      self.logger.info("Dry run completed - no files were actually transferred")
-
-def main():
+def create_argument_parser() -> argparse.ArgumentParser:
+  """Create and configure the argument parser"""
   parser = argparse.ArgumentParser(
     description='Sync AI agent configuration files between local machine and remote server',
     formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -557,6 +635,10 @@ ENVIRONMENT VARIABLES:
   info_group.add_argument('--version', action='version', 
              version='%(prog)s 2.1.0')
 
+  return parser
+
+def main():
+  parser = create_argument_parser()
   args = parser.parse_args()
 
   # Validate quiet and verbose are not both set
@@ -577,9 +659,28 @@ ENVIRONMENT VARIABLES:
     if missing_params:
       parser.error(f"Missing required configuration: {', '.join(missing_params)}")
 
+  # Initialize services
+  logging_service = LoggingService('sync-ai-config', verbose=args.verbose, quiet=args.quiet)
+  logger = logging_service.get_logger()
+  progress_reporter = ProgressReporter(logger)
+  file_mapping_provider = FileMappingProvider(config)
+  
+  # Rsync options
+  rsync_opts = ['-az', '--stats', '--human-readable']
+  if args.verbose:
+    rsync_opts.extend(['-v', '--progress'])
+  if args.quiet:
+    rsync_opts.append('-q')
+  if args.dry_run:
+    rsync_opts.append('--dry-run')
+  
+  remote_ops = RemoteOperations(config, rsync_opts, logger)
+  local_ops = LocalFileOperations(logger)
+  backup_manager = BackupManager(config, remote_ops, local_ops, logger)
+
   # Initialize sync manager
-  manager = SyncManager(config, dry_run=args.dry_run, 
-            verbose=args.verbose, quiet=args.quiet)
+  manager = SyncManager(config, logging_service, progress_reporter, file_mapping_provider,
+                       remote_ops, local_ops, backup_manager, dry_run=args.dry_run)
 
   try:
     # Show config if requested
@@ -613,13 +714,14 @@ ENVIRONMENT VARIABLES:
     # Create backup if requested
     if args.backup and not args.dry_run:
       if args.operation == 'push':
-        manager.create_backup('remote')
+        backup_manager.create_remote_backup()
       else:
-        manager.create_backup('local')
+        mappings = file_mapping_provider.get_mappings()
+        backup_manager.create_local_backup(mappings)
 
     # Setup remote dirs for push
     if args.operation == 'push':
-      manager.setup_remote_dirs()
+      remote_ops.ensure_remote_directory(config.remote_base_dir)
 
     # Perform operation
     if args.operation == 'push':
