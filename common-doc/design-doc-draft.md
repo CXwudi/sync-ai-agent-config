@@ -2,7 +2,7 @@
 
 This program is a command-line utility to synchronize AI agent configuration files between a local machine (Linux/WSL and Windows) and a remote server. It supports push and pull operations for Claude Code and Gemini CLI configurations.
 
-The script is designed to be run from a Linux environment (including WSL). When a Windows user is specified, it accesses Windows files via the `/mnt/c/` path.
+The script is designed to be run from a Linux environment (including WSL). When a Windows user is specified, it accesses Windows files via the `/mnt/c/` path from WSL.
 
 ## Key operations and logic:
 
@@ -54,8 +54,6 @@ rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.gemini/settings.windows
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.gemini/GEMINI.md /mnt/c/Users/{WIN_USER}/.gemini/GEMINI.md
 ```
 
-The program is a CLI utility with two main subcommands: `push` and `pull`. It includes options for specifying remote user, host, and Windows user, as well as flags for dry runs, backups, and verbose output.
+The program is a CLI utility with two main subcommands: `push` and `pull`. It includes options for specifying remote user, host, and Windows user, as well as flags for dry runs, uses `rsync` with the `--update` flag (enabled by default) and verbose output.
 
 Only when the Windows user is specified, the Windows-specific operations are performed.
-
-The script checks for file existence before operations and uses `rsync` with the `--update` flag by default to avoid overwriting newer files.
