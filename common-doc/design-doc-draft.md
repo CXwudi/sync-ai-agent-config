@@ -34,7 +34,7 @@ rsync -avz ~/.gemini/GEMINI.md {USER}@{HOST}:~/sync-files/ai-agents-related/.gem
 **pull**:
 
 - Copies configuration files from the remote server to the local machine.
-- `CLAUDE.md`, `GEMINI.md`, and Claude Code subagents are pulled from the remote server to both the Linux and Windows directories, ensuring both environments are synchronized.
+- Copies to both the Linux and Windows directories, ensuring both environments are synchronized.
 
 ```sh
 # Claude Code
