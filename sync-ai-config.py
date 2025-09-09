@@ -217,17 +217,17 @@ class FileMappingProvider:
       FileMapping(
         c.local_home / '.claude' / 'CLAUDE.md',
         'CLAUDE.md',
-        'CLAUDE.md (WSL)'
+        'CLAUDE.md (Linux)'
       ),
       FileMapping(
         c.local_home / '.gemini' / 'settings.json',
-        'gemini.settings.wsl.json',
-        'Gemini WSL settings'
+        'gemini.settings.linux.json',
+        'Gemini Linux settings'
       ),
       FileMapping(
         c.local_home / '.gemini' / 'GEMINI.md',
         'GEMINI.md',
-        'GEMINI.md (WSL)'
+        'GEMINI.md (Linux)'
       ),
     ]
 
@@ -237,7 +237,7 @@ class FileMappingProvider:
       mappings.extend([
         FileMapping(
           win_dir / '.claude.json',
-          '.claude.window.json',
+          '.claude.windows.json',
           'Claude Windows config'
         ),
         FileMapping(
@@ -247,7 +247,7 @@ class FileMappingProvider:
         ),
         FileMapping(
           win_dir / '.gemini' / 'settings.json',
-          'gemini.settings.window.json',
+          'gemini.settings.windows.json',
           'Gemini Windows settings'
         ),
         FileMapping(
@@ -460,24 +460,24 @@ class SyncManager:
     self.logger.info("Starting PUSH operation (local → remote)...")
     self.progress_reporter.reset_counters()
 
-    # Copy CLAUDE.md and GEMINI.md from Windows to WSL (if Windows user configured)
+    # Copy CLAUDE.md and GEMINI.md from Windows to Linux (if Windows user configured)
     if self.config.windows_user_dir:
       windows_claude = self.config.windows_user_dir / '.claude' / 'CLAUDE.md'
-      wsl_claude = self.config.local_home / '.claude' / 'CLAUDE.md'
+      linux_claude_path = self.config.local_home / '.claude' / 'CLAUDE.md'
 
       if self.local_ops.file_exists(windows_claude):
-        self.local_ops.copy_file(windows_claude, wsl_claude, "CLAUDE.md from Windows to WSL")
+        self.local_ops.copy_file(windows_claude, linux_claude_path, "CLAUDE.md from Windows to Linux")
 
       windows_gemini = self.config.windows_user_dir / '.gemini' / 'GEMINI.md'
-      wsl_gemini = self.config.local_home / '.gemini' / 'GEMINI.md'
+      linux_gemini_path = self.config.local_home / '.gemini' / 'GEMINI.md'
 
       if self.local_ops.file_exists(windows_gemini):
-        self.local_ops.copy_file(windows_gemini, wsl_gemini, "GEMINI.md from Windows to WSL")
+        self.local_ops.copy_file(windows_gemini, linux_gemini_path, "GEMINI.md from Windows to Linux")
 
     # Sync all files
     mappings = self.file_mapping_provider.get_mappings()
     for mapping in mappings:
-      # Skip Windows CLAUDE.md and GEMINI.md as we sync from WSL copies (if Windows configured)
+      # Skip Windows CLAUDE.md and GEMINI.md as we sync from Linux copies (if Windows configured)
       if (self.config.windows_user_dir and 
           mapping.local_path == self.config.windows_user_dir / '.claude' / 'CLAUDE.md'):
         continue
@@ -513,21 +513,21 @@ class SyncManager:
 
       (f"{self.config.remote_base_dir}/CLAUDE.md",
       self.config.local_home / '.claude' / 'CLAUDE.md',
-      "CLAUDE.md (WSL)"),
+      "CLAUDE.md (Linux)"),
 
-      (f"{self.config.remote_base_dir}/gemini.settings.wsl.json",
+      (f"{self.config.remote_base_dir}/gemini.settings.linux.json",
       self.config.local_home / '.gemini' / 'settings.json',
-      "Gemini WSL settings"),
+      "Gemini Linux settings"),
 
       (f"{self.config.remote_base_dir}/GEMINI.md",
       self.config.local_home / '.gemini' / 'GEMINI.md',
-      "GEMINI.md (WSL)"),
+      "GEMINI.md (Linux)"),
     ]
 
     # Add Windows pull operations if Windows user is configured
     if self.config.windows_user_dir:
       pull_ops.extend([
-        (f"{self.config.remote_base_dir}/.claude.window.json",
+        (f"{self.config.remote_base_dir}/.claude.windows.json",
         self.config.windows_user_dir / '.claude.json',
         "Claude Windows config"),
 
@@ -535,7 +535,7 @@ class SyncManager:
         self.config.windows_user_dir / '.claude' / 'CLAUDE.md',
         "CLAUDE.md (Windows)"),
 
-        (f"{self.config.remote_base_dir}/gemini.settings.window.json",
+        (f"{self.config.remote_base_dir}/gemini.settings.windows.json",
         self.config.windows_user_dir / '.gemini' / 'settings.json',
         "Gemini Windows settings"),
 
