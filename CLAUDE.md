@@ -15,14 +15,3 @@
 ### After Completing:
 
 1. Review if any changes made require updating common documentation in ./common-doc/
-
-## Python Code Style
-
-This section is a simplified version of the [`common-doc/code-style.md`] file.
-
-### Basic
-
-- Use type hints for parameters, return types, and non-intuitive variables
-- Use docstrings for functions and classes
-- Use `logging` module with % formatting: `logger.info("Processing %s items", count)`
-  - put logger on the class level for each file
