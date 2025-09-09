@@ -212,3 +212,6 @@ secrets/
 
 # Claude Code configuration (tracked in repo)
 # .claude/ - explicitly tracked for team consistency
+
+# My own
+agent-rsp/
