@@ -11,7 +11,8 @@ This repository contains `sync-ai-config.py` - a complete, working solution for 
 ## Features
 
 - **Bidirectional Sync**: Push local configs to remote or pull remote configs to local
-- **Cross-Platform**: Supports Linux and Windows (via `/mnt/c/` WSL path)
+- **Cross-Platform**: Supports Linux and Windows
+  - To support Windows, the script must be run from WSL. The Windows files are accessed via the `/mnt/c/` path.
 - **Smart Backup**: Timestamped backups before operations
 - **File Protection**: Uses rsync `--update` by default to protect newer files
 - **Comprehensive Logging**: Colored console output with file logging
@@ -118,22 +119,22 @@ The script syncs a predefined set of AI agent configuration files. The exact fil
 
 #### Core Files (Always Synced)
 
-| Local Path (WSL/Linux) | Remote Name | Description |
+| Local Path (Linux/WSL) | Remote Name | Description |
 |---|---|---|
 | `~/.claude.json` | `.claude.linux.json` | Claude CLI configuration |
 | `~/.claude/CLAUDE.md` | `CLAUDE.md` | Claude global instructions |
-| `~/.gemini/settings.json` | `gemini.settings.wsl.json` | Gemini CLI settings |
+| `~/.gemini/settings.json` | `gemini.settings.linux.json` | Gemini CLI settings |
 | `~/.gemini/GEMINI.md` | `GEMINI.md` | Gemini global instructions |
 | `./sync-ai-config.py` | `sync-ai-config.py` | This sync script itself (push only) |
 
 #### Conditional Windows Files (Only when `WIN_USER` provided)
 
-| Local Path (via WSL) | Remote Name | Description |
+| Local Path (Windows via WSL) | Remote Name | Description |
 |---|---|---|
-| `/mnt/c/Users/{WIN_USER}/.claude.json` | `.claude.window.json` | Claude config from Windows |
-| `/mnt/c/Users/{WIN_USER}/.gemini/settings.json` | `gemini.settings.window.json` | Gemini settings from Windows |
+| `/mnt/c/Users/{WIN_USER}/.claude.json` | `.claude.windows.json` | Claude config from Windows |
+| `/mnt/c/Users/{WIN_USER}/.gemini/settings.json` | `gemini.settings.windows.json` | Gemini settings from Windows |
 
-**Note**: During `push`, Windows versions of `CLAUDE.md` and `GEMINI.md` are first copied to WSL (`~/.claude/` and `~/.gemini/`) before syncing to remote.
+**Note**: During `push`, Windows versions of `CLAUDE.md` and `GEMINI.md` are first copied to the Linux home directory (`~/.claude/` and `~/.gemini/`) before syncing to remote.
 
 ## Prerequisites
 
