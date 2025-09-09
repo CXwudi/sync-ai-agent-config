@@ -123,6 +123,7 @@ The script syncs a predefined set of AI agent configuration files. The exact fil
 |---|---|---|
 | `~/.claude.json` | `.claude.linux.json` | Claude CLI configuration |
 | `~/.claude/CLAUDE.md` | `CLAUDE.md` | Claude global instructions |
+| `~/.claude/agents/` | `agents/` | Claude subagents |
 | `~/.gemini/settings.json` | `gemini.settings.linux.json` | Gemini CLI settings |
 | `~/.gemini/GEMINI.md` | `GEMINI.md` | Gemini global instructions |
 | `./sync-ai-config.py` | `sync-ai-config.py` | This sync script itself (push only) |
