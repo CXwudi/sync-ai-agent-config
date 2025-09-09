@@ -11,14 +11,14 @@ push:
 
 ```
 # Claude Code
-rsync -avz /mnt/c/Users/{WIN_USER}/.claude.json {USER}@{HOST}:~/sync-files/ai-agents-related/.claude.window.json
 rsync -avz ~/.claude.json {USER}@{HOST}:~/sync-files/ai-agents-related/.claude.linux.json
+rsync -avz /mnt/c/Users/{WIN_USER}/.claude.json {USER}@{HOST}:~/sync-files/ai-agents-related/.claude.windows.json
 cp /mnt/c/Users/{WIN_USER}/.claude/CLAUDE.md ~/.claude/CLAUDE.md
 rsync -avz ~/.claude/CLAUDE.md {USER}@{HOST}:~/sync-files/ai-agents-related/CLAUDE.md
 
 # Gemini CLI
 rsync -avz ~/.gemini/settings.json {USER}@{HOST}:~/sync-files/ai-agents-related/gemini.settings.linux.json
-rsync -avz /mnt/c/Users/{WIN_USER}/.gemini/settings.json {USER}@{HOST}:~/sync-files/ai-agents-related/gemini.settings.window.json
+rsync -avz /mnt/c/Users/{WIN_USER}/.gemini/settings.json {USER}@{HOST}:~/sync-files/ai-agents-related/gemini.settings.windows.json
 cp /mnt/c/Users/{WIN_USER}/.gemini/GEMINI.md ~/.gemini/GEMINI.md
 rsync -avz ~/.gemini/GEMINI.md {USER}@{HOST}:~/sync-files/ai-agents-related/GEMINI.md
 ```
@@ -28,13 +28,19 @@ pull:
 -   `CLAUDE.md` and `GEMINI.md` are pulled from the remote server to both the Linux and Windows directories, ensuring both environments are synchronized.
 
 ```
+# Claude Code
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.claude.linux.json ~/.claude.json
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/CLAUDE.md ~/.claude/CLAUDE.md
-rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.claude.window.json /mnt/c/Users/{WIN_USER}/.claude.json
+
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.claude.windows.json /mnt/c/Users/{WIN_USER}/.claude.json
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/CLAUDE.md /mnt/c/Users/{WIN_USER}/.claude/CLAUDE.md
 
+# Gemini CLI
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/gemini.settings.linux.json ~/.gemini/settings.json
-rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/gemini.settings.window.json /mnt/c/Users/{WIN_USER}/.gemini/settings.json
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/GEMINI.md ~/.gemini/GEMINI.md
+
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/gemini.settings.windows.json /mnt/c/Users/{WIN_USER}/.gemini/settings.json
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/GEMINI.md /mnt/c/Users/{WIN_USER}/.gemini/GEMINI.md
 ```
 
 The program is a CLI utility with two main subcommands: `push` and `pull`. It includes options for specifying remote user, host, and Windows user, as well as flags for dry runs, backups, and verbose output.
