@@ -66,10 +66,11 @@ class Config:
 
 @dataclass
 class FileMapping:
-  """Represents a file sync mapping"""
+  """Represents a file or directory sync mapping"""
   local_path: Path
   remote_name: str
   description: str
+  is_directory: bool = False
 
 class ColoredFormatter(logging.Formatter):
   """Custom formatter with colors"""
@@ -216,17 +217,23 @@ class FileMappingProvider:
       ),
       FileMapping(
         c.local_home / '.claude' / 'CLAUDE.md',
-        'CLAUDE.md',
+        '.claude/CLAUDE.md',
         'CLAUDE.md (Linux)'
       ),
       FileMapping(
+        c.local_home / '.claude' / 'agents',
+        '.claude/agents/',
+        'Claude agents directory (Linux)',
+        is_directory=True
+      ),
+      FileMapping(
         c.local_home / '.gemini' / 'settings.json',
-        'gemini.settings.linux.json',
+        '.gemini/settings.linux.json',
         'Gemini Linux settings'
       ),
       FileMapping(
         c.local_home / '.gemini' / 'GEMINI.md',
-        'GEMINI.md',
+        '.gemini/GEMINI.md',
         'GEMINI.md (Linux)'
       ),
     ]
@@ -242,17 +249,23 @@ class FileMappingProvider:
         ),
         FileMapping(
           win_dir / '.claude' / 'CLAUDE.md',
-          'CLAUDE.md',
+          '.claude/CLAUDE.md',
           'CLAUDE.md (Windows)'
         ),
         FileMapping(
+          win_dir / '.claude' / 'agents',
+          '.claude/agents/',
+          'Claude agents directory (Windows)',
+          is_directory=True
+        ),
+        FileMapping(
           win_dir / '.gemini' / 'settings.json',
-          'gemini.settings.windows.json',
+          '.gemini/settings.windows.json',
           'Gemini Windows settings'
         ),
         FileMapping(
           win_dir / '.gemini' / 'GEMINI.md',
-          'GEMINI.md',
+          '.gemini/GEMINI.md',
           'GEMINI.md (Windows)'
         ),
       ])
@@ -319,14 +332,24 @@ class RemoteOperations:
       self.logger.warning("Failed to create remote directory: %s", e)
       return False
 
-  def sync_file(self, source: str, dest: str, description: str) -> bool:
-    """Execute rsync for a single file"""
+  def sync_file(self, source: str, dest: str, description: str, is_directory: bool = False) -> bool:
+    """Execute rsync for a single file or directory"""
     self.logger.info("Syncing %s", description)
     self.logger.debug("  From: %s", source)
     self.logger.debug("  To: %s", dest)
 
     try:
-      cmd = ['rsync'] + self.rsync_opts + [source, dest]
+      cmd = ['rsync'] + self.rsync_opts.copy()
+      
+      # Add recursive flag for directories
+      if is_directory:
+        if '-r' not in cmd:
+          cmd.append('-r')
+        # Ensure source ends with / for directory sync
+        if not source.endswith('/'):
+          source += '/'
+      
+      cmd.extend([source, dest])
       result = subprocess.run(cmd, capture_output=True, text=True)
 
       if '--verbose' in self.rsync_opts and result.stdout:
@@ -356,17 +379,27 @@ class LocalFileOperations:
       self.logger.debug("Creating directory: %s", dir_path)
       dir_path.mkdir(parents=True, exist_ok=True)
 
-  def copy_file(self, source: Path, dest: Path, description: str) -> bool:
-    """Copy file locally"""
+  def copy_file(self, source: Path, dest: Path, description: str, is_directory: bool = False) -> bool:
+    """Copy file or directory locally"""
     try:
       if not source.exists():
-        self.logger.warning("Source file not found: %s", source)
+        self.logger.warning("Source not found: %s", source)
         return False
 
-      self.ensure_directory(dest)
-
-      import shutil
-      shutil.copy2(source, dest)
+      if is_directory:
+        # For directories, ensure parent of destination exists
+        self.ensure_directory(dest.parent / dest.name)
+        
+        import shutil
+        if dest.exists():
+          shutil.rmtree(dest)
+        shutil.copytree(source, dest)
+      else:
+        self.ensure_directory(dest)
+        
+        import shutil
+        shutil.copy2(source, dest)
+      
       self.logger.info("Copied %s", description)
       return True
 
@@ -474,15 +507,25 @@ class SyncManager:
       if self.local_ops.file_exists(windows_gemini):
         self.local_ops.copy_file(windows_gemini, linux_gemini_path, "GEMINI.md from Windows to Linux")
 
+      # Copy agents directory from Windows to Linux
+      windows_agents = self.config.windows_user_dir / '.claude' / 'agents'
+      linux_agents_path = self.config.local_home / '.claude' / 'agents'
+
+      if self.local_ops.file_exists(windows_agents):
+        self.local_ops.copy_file(windows_agents, linux_agents_path, "Claude agents from Windows to Linux", is_directory=True)
+
     # Sync all files
     mappings = self.file_mapping_provider.get_mappings()
     for mapping in mappings:
-      # Skip Windows CLAUDE.md and GEMINI.md as we sync from Linux copies (if Windows configured)
+      # Skip Windows CLAUDE.md, GEMINI.md, and agents as we sync from Linux copies (if Windows configured)
       if (self.config.windows_user_dir and 
           mapping.local_path == self.config.windows_user_dir / '.claude' / 'CLAUDE.md'):
         continue
       if (self.config.windows_user_dir and 
           mapping.local_path == self.config.windows_user_dir / '.gemini' / 'GEMINI.md'):
+        continue
+      if (self.config.windows_user_dir and 
+          mapping.local_path == self.config.windows_user_dir / '.claude' / 'agents'):
         continue
 
       if not self.local_ops.file_exists(mapping.local_path):
@@ -492,7 +535,7 @@ class SyncManager:
 
       remote_path = f"{self.config.remote_url}:{self.config.remote_base_dir}/{mapping.remote_name}"
 
-      if self.remote_ops.sync_file(str(mapping.local_path), remote_path, mapping.description):
+      if self.remote_ops.sync_file(str(mapping.local_path), remote_path, mapping.description, mapping.is_directory):
         self.progress_reporter.track_success()
       else:
         self.progress_reporter.track_failure()
@@ -511,15 +554,19 @@ class SyncManager:
       self.config.local_home / '.claude.json',
       "Claude Linux config"),
 
-      (f"{self.config.remote_base_dir}/CLAUDE.md",
+      (f"{self.config.remote_base_dir}/.claude/CLAUDE.md",
       self.config.local_home / '.claude' / 'CLAUDE.md',
       "CLAUDE.md (Linux)"),
 
-      (f"{self.config.remote_base_dir}/gemini.settings.linux.json",
+      (f"{self.config.remote_base_dir}/.claude/agents/",
+      self.config.local_home / '.claude' / 'agents',
+      "Claude agents directory (Linux)"),
+
+      (f"{self.config.remote_base_dir}/.gemini/settings.linux.json",
       self.config.local_home / '.gemini' / 'settings.json',
       "Gemini Linux settings"),
 
-      (f"{self.config.remote_base_dir}/GEMINI.md",
+      (f"{self.config.remote_base_dir}/.gemini/GEMINI.md",
       self.config.local_home / '.gemini' / 'GEMINI.md',
       "GEMINI.md (Linux)"),
     ]
@@ -531,24 +578,37 @@ class SyncManager:
         self.config.windows_user_dir / '.claude.json',
         "Claude Windows config"),
 
-        (f"{self.config.remote_base_dir}/CLAUDE.md",
+        (f"{self.config.remote_base_dir}/.claude/CLAUDE.md",
         self.config.windows_user_dir / '.claude' / 'CLAUDE.md',
         "CLAUDE.md (Windows)"),
 
-        (f"{self.config.remote_base_dir}/gemini.settings.windows.json",
+        (f"{self.config.remote_base_dir}/.claude/agents/",
+        self.config.windows_user_dir / '.claude' / 'agents',
+        "Claude agents directory (Windows)"),
+
+        (f"{self.config.remote_base_dir}/.gemini/settings.windows.json",
         self.config.windows_user_dir / '.gemini' / 'settings.json',
         "Gemini Windows settings"),
 
-        (f"{self.config.remote_base_dir}/GEMINI.md",
+        (f"{self.config.remote_base_dir}/.gemini/GEMINI.md",
         self.config.windows_user_dir / '.gemini' / 'GEMINI.md',
         "GEMINI.md (Windows)"),
       ])
 
     for remote_file, local_path, description in pull_ops:
-      self.local_ops.ensure_directory(local_path)
+      # Determine if this is a directory based on remote path
+      is_directory = remote_file.endswith('/') or 'directory' in description.lower()
+      
+      if is_directory:
+        # For directories, ensure the parent directory exists
+        self.local_ops.ensure_directory(local_path.parent / local_path.name)
+      else:
+        # For files, ensure the directory exists
+        self.local_ops.ensure_directory(local_path)
+      
       remote_path = f"{self.config.remote_url}:{remote_file}"
 
-      if self.remote_ops.sync_file(remote_path, str(local_path), description):
+      if self.remote_ops.sync_file(remote_path, str(local_path), description, is_directory):
         self.progress_reporter.track_success()
       else:
         self.progress_reporter.track_failure()
@@ -597,7 +657,6 @@ ENVIRONMENT VARIABLES:
 
   parser.add_argument('operation', nargs='?',
            choices=['push', 'pull'],
-           required=True,
            help='Operation to perform')
 
 # Remote configuration
@@ -649,7 +708,12 @@ def main():
   # Initialize configuration from args (with env var fallback)
   config = Config.from_args(args)
 
-  # Validate required configuration (skip for info-only operations)
+  # Validate operation is provided (unless info-only operations)
+  if not (args.list or args.config or args.check):
+    if not args.operation:
+      parser.error("Operation (push/pull) is required")
+
+  # Validate required configuration (skip for info-only operations)  
   if not (args.list or args.config):
     missing_params: List[str] = []
     if not config.remote_user:
@@ -667,7 +731,7 @@ def main():
   file_mapping_provider = FileMappingProvider(config)
   
   # Rsync options
-  rsync_opts = ['-az', '--stats', '--human-readable']
+  rsync_opts = ['-az', '--update', '--stats', '--human-readable']
   if args.verbose:
     rsync_opts.extend(['-v', '--progress'])
   if args.quiet:
