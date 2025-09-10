@@ -422,7 +422,6 @@ class LocalFileOperations:
       self.logger.debug("Creating directory: %s", dir_path)
       dir_path.mkdir(parents=True, exist_ok=True)
 
-
   def file_exists(self, path: Path) -> bool:
     """Check if file exists"""
     return path.exists()
@@ -500,7 +499,6 @@ class PushOperation:
     self.local_ops = local_ops
     self.dry_run = dry_run
 
-
   def filter_mappings(self, mappings: List[FileMapping]) -> List[FileMapping]:
     """Filter out Windows files that should be synced from Linux copies"""
     if not self.config.windows_user_dir:
@@ -515,38 +513,48 @@ class PushOperation:
 
     return [mapping for mapping in mappings if mapping.local_path not in skip_paths]
 
+  def get_all_push_mappings(self) -> List[FileMapping]:
+    """Get combined Windows-to-Linux and filtered local-to-remote mappings for push operation"""
+    all_mappings: List[FileMapping] = []
+
+    # Add Windows-to-Linux mappings with operation_type
+    windows_to_linux_mappings = self.file_mapping_provider.get_windows_to_linux_mappings()
+    for mapping in windows_to_linux_mappings:
+      mapping.operation_type = "windows_to_linux"
+      all_mappings.append(mapping)
+
+    # Add filtered local-to-remote mappings with operation_type
+    local_to_remote_mappings = self.file_mapping_provider.get_local_to_remote_mappings()
+    filtered_mappings = self.filter_mappings(local_to_remote_mappings)
+    for mapping in filtered_mappings:
+      mapping.operation_type = "local_to_remote"
+      all_mappings.append(mapping)
+
+    return all_mappings
+
   def execute(self) -> bool:
     """Execute push operation"""
     self.logger.info("Starting PUSH operation (local → remote)...")
     self.progress_reporter.reset_counters()
 
-    # First: Copy files from Windows to Linux using rsync (if Windows configured)
-    windows_to_linux_mappings = self.file_mapping_provider.get_windows_to_linux_mappings()
-    for mapping in windows_to_linux_mappings:
+    # Get all push mappings (Windows-to-Linux and filtered local-to-remote)
+    all_mappings = self.get_all_push_mappings()
+
+    # Process all mappings in single unified loop
+    for mapping in all_mappings:
       if not self.local_ops.file_exists(mapping.local_path):
-        self.logger.warning("Windows file not found: %s", mapping.local_path)
-        continue
-
-      # Use rsync for Windows to Linux local copy
-      if self.remote_ops.sync_file(str(mapping.local_path), mapping.remote_name, mapping.description, mapping.is_directory):
-        self.logger.info("✓ Copied %s", mapping.description)
-      else:
-        self.logger.error("Failed to copy %s", mapping.description)
-
-    # Second: Get and filter local-to-remote mappings
-    all_mappings = self.file_mapping_provider.get_local_to_remote_mappings()
-    filtered_mappings = self.filter_mappings(all_mappings)
-
-    # Sync all filtered files to remote
-    for mapping in filtered_mappings:
-      if not self.local_ops.file_exists(mapping.local_path):
-        self.logger.warning("File not found: %s", mapping.local_path)
+        if mapping.operation_type == "windows_to_linux":
+          self.logger.warning("Windows file not found: %s", mapping.local_path)
+        else:
+          self.logger.warning("File not found: %s", mapping.local_path)
         self.progress_reporter.track_failure()
         continue
 
-      remote_path = f"{self.config.remote_url}:{self.config.remote_base_dir}/{mapping.remote_name}"
+      # Determine destination path based on operation type
+      dest_path = mapping.remote_name if mapping.operation_type == "windows_to_linux" else f"{self.config.remote_url}:{self.config.remote_base_dir}/{mapping.remote_name}"
 
-      if self.remote_ops.sync_file(str(mapping.local_path), remote_path, mapping.description, mapping.is_directory):
+      # Perform sync operation
+      if self.remote_ops.sync_file(str(mapping.local_path), dest_path, mapping.description, mapping.is_directory):
         self.progress_reporter.track_success()
       else:
         self.progress_reporter.track_failure()
