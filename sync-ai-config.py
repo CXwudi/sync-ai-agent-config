@@ -677,7 +677,7 @@ ENVIRONMENT VARIABLES:
   info_group.add_argument('--config', action='store_true',
                           help='Show current configuration')
   info_group.add_argument('--version', action='version',
-                          version='%(prog)s 2.1.0')
+                          version='%(prog)s 2.5.0')
 
   return parser
 
