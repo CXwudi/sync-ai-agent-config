@@ -218,7 +218,7 @@ class FileMappingProvider:
   def __init__(self, config: Config):
     self.config = config
 
-  def get_mappings(self) -> List[FileMapping]:
+  def get_local_to_remote_mappings(self) -> List[FileMapping]:
     """Create file mappings for sync operations"""
     c = self.config
 
@@ -294,6 +294,31 @@ class FileMappingProvider:
     )
 
     return mappings
+
+  def get_windows_to_linux_mappings(self) -> List[FileMapping]:
+    """Create Windows to Linux file mappings for local rsync operations"""
+    if not self.config.windows_user or not self.config.windows_user_dir:
+      return []
+
+    win_dir = self.config.windows_user_dir
+    return [
+        FileMapping(
+            win_dir / '.claude' / 'CLAUDE.md',
+            str(self.config.local_home / '.claude' / 'CLAUDE.md'),
+            'CLAUDE.md from Windows to Linux'
+        ),
+        FileMapping(
+            win_dir / '.gemini' / 'GEMINI.md',
+            str(self.config.local_home / '.gemini' / 'GEMINI.md'),
+            'GEMINI.md from Windows to Linux'
+        ),
+        FileMapping(
+            win_dir / '.claude' / 'agents',
+            str(self.config.local_home / '.claude' / 'agents'),
+            'Claude agents from Windows to Linux',
+            is_directory=True
+        ),
+    ]
 
 
 class RemoteOperations:
@@ -397,33 +422,6 @@ class LocalFileOperations:
       self.logger.debug("Creating directory: %s", dir_path)
       dir_path.mkdir(parents=True, exist_ok=True)
 
-  def copy_file(self, source: Path, dest: Path, description: str, is_directory: bool = False) -> bool:
-    """Copy file or directory locally"""
-    try:
-      if not source.exists():
-        self.logger.warning("Source not found: %s", source)
-        return False
-
-      if is_directory:
-        # For directories, ensure parent of destination exists
-        self.ensure_directory(dest.parent / dest.name)
-
-        import shutil
-        if dest.exists():
-          shutil.rmtree(dest)
-        shutil.copytree(source, dest)
-      else:
-        self.ensure_directory(dest)
-
-        import shutil
-        shutil.copy2(source, dest)
-
-      self.logger.info("Copied %s", description)
-      return True
-
-    except Exception as e:
-      self.logger.error("Failed to copy %s: %s", description, e)
-      return False
 
   def file_exists(self, path: Path) -> bool:
     """Check if file exists"""
@@ -502,34 +500,6 @@ class PushOperation:
     self.local_ops = local_ops
     self.dry_run = dry_run
 
-  def copy_windows_to_linux(self) -> None:
-    """Copy CLAUDE.md, GEMINI.md, and agents from Windows to Linux"""
-    if not self.config.windows_user_dir:
-      return
-
-    # Copy CLAUDE.md from Windows to Linux
-    windows_claude = self.config.windows_user_dir / '.claude' / 'CLAUDE.md'
-    linux_claude_path = self.config.local_home / '.claude' / 'CLAUDE.md'
-
-    if self.local_ops.file_exists(windows_claude):
-      self.local_ops.copy_file(
-          windows_claude, linux_claude_path, "CLAUDE.md from Windows to Linux")
-
-    # Copy GEMINI.md from Windows to Linux
-    windows_gemini = self.config.windows_user_dir / '.gemini' / 'GEMINI.md'
-    linux_gemini_path = self.config.local_home / '.gemini' / 'GEMINI.md'
-
-    if self.local_ops.file_exists(windows_gemini):
-      self.local_ops.copy_file(
-          windows_gemini, linux_gemini_path, "GEMINI.md from Windows to Linux")
-
-    # Copy agents directory from Windows to Linux
-    windows_agents = self.config.windows_user_dir / '.claude' / 'agents'
-    linux_agents_path = self.config.local_home / '.claude' / 'agents'
-
-    if self.local_ops.file_exists(windows_agents):
-      self.local_ops.copy_file(windows_agents, linux_agents_path,
-                               "Claude agents from Windows to Linux", is_directory=True)
 
   def filter_mappings(self, mappings: List[FileMapping]) -> List[FileMapping]:
     """Filter out Windows files that should be synced from Linux copies"""
@@ -550,14 +520,24 @@ class PushOperation:
     self.logger.info("Starting PUSH operation (local → remote)...")
     self.progress_reporter.reset_counters()
 
-    # Copy files from Windows to Linux first (if Windows configured)
-    self.copy_windows_to_linux()
+    # First: Copy files from Windows to Linux using rsync (if Windows configured)
+    windows_to_linux_mappings = self.file_mapping_provider.get_windows_to_linux_mappings()
+    for mapping in windows_to_linux_mappings:
+      if not self.local_ops.file_exists(mapping.local_path):
+        self.logger.warning("Windows file not found: %s", mapping.local_path)
+        continue
 
-    # Get and filter mappings
-    all_mappings = self.file_mapping_provider.get_mappings()
+      # Use rsync for Windows to Linux local copy
+      if self.remote_ops.sync_file(str(mapping.local_path), mapping.remote_name, mapping.description, mapping.is_directory):
+        self.logger.info("✓ Copied %s", mapping.description)
+      else:
+        self.logger.error("Failed to copy %s", mapping.description)
+
+    # Second: Get and filter local-to-remote mappings
+    all_mappings = self.file_mapping_provider.get_local_to_remote_mappings()
     filtered_mappings = self.filter_mappings(all_mappings)
 
-    # Sync all filtered files
+    # Sync all filtered files to remote
     for mapping in filtered_mappings:
       if not self.local_ops.file_exists(mapping.local_path):
         self.logger.warning("File not found: %s", mapping.local_path)
@@ -591,7 +571,7 @@ class PullOperation:
 
   def get_pull_mappings(self) -> List[FileMapping]:
     """Get filtered FileMapping list for pull operations"""
-    all_mappings = self.file_mapping_provider.get_mappings()
+    all_mappings = self.file_mapping_provider.get_local_to_remote_mappings()
 
     # Filter out script file (not pulled from remote)
     pull_mappings = [
@@ -765,7 +745,7 @@ def main():
 
     # List mappings if requested
     if args.list:
-      mappings = file_mapping_provider.get_mappings()
+      mappings = file_mapping_provider.get_local_to_remote_mappings()
       progress_reporter.list_mappings(mappings, config)
       return 0
 
@@ -792,7 +772,7 @@ def main():
       if args.operation == 'push':
         backup_manager.create_remote_backup()
       else:
-        mappings = file_mapping_provider.get_mappings()
+        mappings = file_mapping_provider.get_local_to_remote_mappings()
         backup_manager.create_local_backup(mappings)
 
     # Setup remote dirs for push
