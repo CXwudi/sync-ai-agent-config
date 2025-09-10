@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 # ANSI color codes
 class Colors:
@@ -468,66 +468,74 @@ class BackupManager:
       self.logger.info("%s✓ Local backup created%s", Colors.GREEN, Colors.NC)
     return success
 
-class SyncManager:
-  """Manages AI configuration synchronization"""
+class PushOperation:
+  """Handles push operation (local → remote)"""
 
-  def __init__(self, config: Config, logging_service: LoggingService, 
-               progress_reporter: ProgressReporter, file_mapping_provider: FileMappingProvider,
-               remote_ops: RemoteOperations, local_ops: LocalFileOperations, 
-               backup_manager: BackupManager, dry_run: bool = False):
+  def __init__(self, config: Config, logger: logging.Logger, progress_reporter: ProgressReporter,
+               file_mapping_provider: FileMappingProvider, remote_ops: RemoteOperations, 
+               local_ops: LocalFileOperations, dry_run: bool = False):
     self.config = config
-    self.dry_run = dry_run
-    self.logger = logging_service.get_logger()
+    self.logger = logger
     self.progress_reporter = progress_reporter
     self.file_mapping_provider = file_mapping_provider
     self.remote_ops = remote_ops
     self.local_ops = local_ops
-    self.backup_manager = backup_manager
+    self.dry_run = dry_run
 
-  def check_connectivity(self) -> bool:
-    """Check SSH connectivity to remote server"""
-    return self.remote_ops.check_connectivity()
+  def copy_windows_to_linux(self) -> None:
+    """Copy CLAUDE.md, GEMINI.md, and agents from Windows to Linux"""
+    if not self.config.windows_user_dir:
+      return
 
-  def push(self) -> bool:
-    """Push configs to remote server"""
+    # Copy CLAUDE.md from Windows to Linux
+    windows_claude = self.config.windows_user_dir / '.claude' / 'CLAUDE.md'
+    linux_claude_path = self.config.local_home / '.claude' / 'CLAUDE.md'
+
+    if self.local_ops.file_exists(windows_claude):
+      self.local_ops.copy_file(windows_claude, linux_claude_path, "CLAUDE.md from Windows to Linux")
+
+    # Copy GEMINI.md from Windows to Linux  
+    windows_gemini = self.config.windows_user_dir / '.gemini' / 'GEMINI.md'
+    linux_gemini_path = self.config.local_home / '.gemini' / 'GEMINI.md'
+
+    if self.local_ops.file_exists(windows_gemini):
+      self.local_ops.copy_file(windows_gemini, linux_gemini_path, "GEMINI.md from Windows to Linux")
+
+    # Copy agents directory from Windows to Linux
+    windows_agents = self.config.windows_user_dir / '.claude' / 'agents'
+    linux_agents_path = self.config.local_home / '.claude' / 'agents'
+
+    if self.local_ops.file_exists(windows_agents):
+      self.local_ops.copy_file(windows_agents, linux_agents_path, "Claude agents from Windows to Linux", is_directory=True)
+
+  def filter_mappings(self, mappings: List[FileMapping]) -> List[FileMapping]:
+    """Filter out Windows files that should be synced from Linux copies"""
+    if not self.config.windows_user_dir:
+      return mappings
+
+    # Files to skip because they're synced from Linux copies
+    skip_paths = {
+      self.config.windows_user_dir / '.claude' / 'CLAUDE.md',
+      self.config.windows_user_dir / '.gemini' / 'GEMINI.md', 
+      self.config.windows_user_dir / '.claude' / 'agents'
+    }
+
+    return [mapping for mapping in mappings if mapping.local_path not in skip_paths]
+
+  def execute(self) -> bool:
+    """Execute push operation"""
     self.logger.info("Starting PUSH operation (local → remote)...")
     self.progress_reporter.reset_counters()
 
-    # Copy CLAUDE.md and GEMINI.md from Windows to Linux (if Windows user configured)
-    if self.config.windows_user_dir:
-      windows_claude = self.config.windows_user_dir / '.claude' / 'CLAUDE.md'
-      linux_claude_path = self.config.local_home / '.claude' / 'CLAUDE.md'
+    # Copy files from Windows to Linux first (if Windows configured)
+    self.copy_windows_to_linux()
 
-      if self.local_ops.file_exists(windows_claude):
-        self.local_ops.copy_file(windows_claude, linux_claude_path, "CLAUDE.md from Windows to Linux")
+    # Get and filter mappings
+    all_mappings = self.file_mapping_provider.get_mappings()
+    filtered_mappings = self.filter_mappings(all_mappings)
 
-      windows_gemini = self.config.windows_user_dir / '.gemini' / 'GEMINI.md'
-      linux_gemini_path = self.config.local_home / '.gemini' / 'GEMINI.md'
-
-      if self.local_ops.file_exists(windows_gemini):
-        self.local_ops.copy_file(windows_gemini, linux_gemini_path, "GEMINI.md from Windows to Linux")
-
-      # Copy agents directory from Windows to Linux
-      windows_agents = self.config.windows_user_dir / '.claude' / 'agents'
-      linux_agents_path = self.config.local_home / '.claude' / 'agents'
-
-      if self.local_ops.file_exists(windows_agents):
-        self.local_ops.copy_file(windows_agents, linux_agents_path, "Claude agents from Windows to Linux", is_directory=True)
-
-    # Sync all files
-    mappings = self.file_mapping_provider.get_mappings()
-    for mapping in mappings:
-      # Skip Windows CLAUDE.md, GEMINI.md, and agents as we sync from Linux copies (if Windows configured)
-      if (self.config.windows_user_dir and 
-          mapping.local_path == self.config.windows_user_dir / '.claude' / 'CLAUDE.md'):
-        continue
-      if (self.config.windows_user_dir and 
-          mapping.local_path == self.config.windows_user_dir / '.gemini' / 'GEMINI.md'):
-        continue
-      if (self.config.windows_user_dir and 
-          mapping.local_path == self.config.windows_user_dir / '.claude' / 'agents'):
-        continue
-
+    # Sync all filtered files
+    for mapping in filtered_mappings:
       if not self.local_ops.file_exists(mapping.local_path):
         self.logger.warning("File not found: %s", mapping.local_path)
         self.progress_reporter.track_failure()
@@ -543,11 +551,20 @@ class SyncManager:
     self.progress_reporter.print_summary("Push", self.dry_run)
     return self.progress_reporter.fail_count == 0
 
-  def pull(self) -> bool:
-    """Pull configs from remote server"""
-    self.logger.info("Starting PULL operation (remote → local)...")
-    self.progress_reporter.reset_counters()
+class PullOperation:
+  """Handles pull operation (remote → local)"""
 
+  def __init__(self, config: Config, logger: logging.Logger, progress_reporter: ProgressReporter,
+               remote_ops: RemoteOperations, local_ops: LocalFileOperations, dry_run: bool = False):
+    self.config = config
+    self.logger = logger
+    self.progress_reporter = progress_reporter
+    self.remote_ops = remote_ops
+    self.local_ops = local_ops
+    self.dry_run = dry_run
+
+  def build_pull_operations(self) -> List[Tuple[str, Path, str]]:
+    """Build list of pull operations (remote_file, local_path, description)"""
     # Define Linux pull operations (always included)
     pull_ops = [
       (f"{self.config.remote_base_dir}/.claude.linux.json",
@@ -595,6 +612,15 @@ class SyncManager:
         "GEMINI.md (Windows)"),
       ])
 
+    return pull_ops
+
+  def execute(self) -> bool:
+    """Execute pull operation"""
+    self.logger.info("Starting PULL operation (remote → local)...")
+    self.progress_reporter.reset_counters()
+
+    pull_ops = self.build_pull_operations()
+
     for remote_file, local_path, description in pull_ops:
       # Determine if this is a directory based on remote path
       is_directory = remote_file.endswith('/') or 'directory' in description.lower()
@@ -616,14 +642,6 @@ class SyncManager:
     self.progress_reporter.print_summary("Pull", self.dry_run)
     return self.progress_reporter.fail_count == 0
 
-  def list_mappings(self) -> None:
-    """List all file mappings"""
-    mappings = self.file_mapping_provider.get_mappings()
-    self.progress_reporter.list_mappings(mappings, self.config)
-
-  def show_config(self) -> None:
-    """Show current configuration"""
-    self.progress_reporter.show_config(self.config)
 
 def create_argument_parser() -> argparse.ArgumentParser:
   """Create and configure the argument parser"""
@@ -743,37 +761,40 @@ def main():
   local_ops = LocalFileOperations(logger)
   backup_manager = BackupManager(config, remote_ops, local_ops, logger)
 
-  # Initialize sync manager
-  manager = SyncManager(config, logging_service, progress_reporter, file_mapping_provider,
-                       remote_ops, local_ops, backup_manager, dry_run=args.dry_run)
+  # Initialize operation classes
+  push_operation = PushOperation(config, logger, progress_reporter, file_mapping_provider,
+                                remote_ops, local_ops, args.dry_run)
+  pull_operation = PullOperation(config, logger, progress_reporter, remote_ops, 
+                                local_ops, args.dry_run)
 
   try:
     # Show config if requested
     if args.config:
-      manager.show_config()
+      progress_reporter.show_config(config)
       return 0
 
     # List mappings if requested
     if args.list:
-      manager.list_mappings()
+      mappings = file_mapping_provider.get_mappings()
+      progress_reporter.list_mappings(mappings, config)
       return 0
 
     # Print header
     if not args.quiet:
-      manager.logger.info("═" * 50)
-      manager.logger.info("AI Config Sync Started")
-      manager.logger.info("Operation: %s", args.operation.upper())
-      manager.logger.info("Remote: %s", config.remote_url)
-      manager.logger.info("Remote Dir: %s", config.remote_base_dir)
-      manager.logger.info("Windows User: %s", config.windows_user)
+      logger.info("═" * 50)
+      logger.info("AI Config Sync Started")
+      logger.info("Operation: %s", args.operation.upper())
+      logger.info("Remote: %s", config.remote_url)
+      logger.info("Remote Dir: %s", config.remote_base_dir)
+      logger.info("Windows User: %s", config.windows_user)
 
     # Check connectivity
-    if not manager.check_connectivity():
+    if not remote_ops.check_connectivity():
       return 1
 
     # Check only mode
     if args.check:
-      manager.logger.info("Connectivity check passed.")
+      logger.info("Connectivity check passed.")
       return 0
 
     # Create backup if requested
@@ -790,21 +811,21 @@ def main():
 
     # Perform operation
     if args.operation == 'push':
-      success = manager.push()
+      success = push_operation.execute()
     else:
-      success = manager.pull()
+      success = pull_operation.execute()
 
     if not args.quiet:
-      manager.logger.info("AI Config Sync Completed")
-      manager.logger.info("═" * 50)
+      logger.info("AI Config Sync Completed")
+      logger.info("═" * 50)
 
     return 0 if success else 1
 
   except KeyboardInterrupt:
-    manager.logger.error("\nOperation cancelled by user")
+    logger.error("\nOperation cancelled by user")
     return 130
   except Exception as e:
-    manager.logger.error("Unexpected error: %s", e)
+    logger.error("Unexpected error: %s", e)
     if args.verbose:
       import traceback
       traceback.print_exc()
