@@ -727,7 +727,7 @@ def main():
   file_mapping_provider = FileMappingProvider(config)
 
   # Rsync options
-  rsync_opts = ['-az', '--update', '--stats', '--human-readable']
+  rsync_opts = ['-az', '--update', '--stats', '--human-readable', '--mkpath']
   if args.verbose:
     rsync_opts.extend(['-v', '--progress'])
   if args.quiet:
