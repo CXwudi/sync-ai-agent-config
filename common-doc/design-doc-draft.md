@@ -2,7 +2,7 @@
 
 This program is a command-line utility to synchronize AI agent configuration files between a local machine (Linux/WSL and Windows) and a remote server. It supports push and pull operations for Claude Code and Gemini CLI configurations.
 
-The script is designed to be run from a Linux environment (including WSL). When a Windows user is specified, it accesses Windows files via the `/mnt/c/` path from WSL.
+The script is designed to be run from a Linux environment (typically via WSL). To backup configurations from a Windows machine, specify the Windows username. Then, the script accesses the Windows files via the `/mnt/c/` path from WSL.
 
 ## Key operations and logic:
 

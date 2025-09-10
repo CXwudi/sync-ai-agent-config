@@ -595,9 +595,10 @@ ENVIRONMENT VARIABLES:
     """
   )
 
-  parser.add_argument('operation', nargs='?', default='push',
+  parser.add_argument('operation', nargs='?',
            choices=['push', 'pull'],
-           help='Operation to perform (default: push)')
+           required=True,
+           help='Operation to perform')
 
 # Remote configuration
   remote_group = parser.add_argument_group('remote configuration')
