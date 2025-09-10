@@ -13,9 +13,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 # ANSI color codes
+
+
 class Colors:
   RED = '\033[0;31m'
   GREEN = '\033[0;32m'
@@ -23,9 +25,11 @@ class Colors:
   BLUE = '\033[0;34m'
   NC = '\033[0m'  # No Color
 
+
 class Operation(Enum):
   PUSH = "push"
   PULL = "pull"
+
 
 @dataclass
 class Config:
@@ -58,11 +62,13 @@ class Config:
     Priority: Command line args > Environment variables > Defaults
     """
     return cls(
-      remote_user=args.remote_user or os.getenv('SYNC_USER'),
-      remote_host=args.remote_host or os.getenv('SYNC_HOST'),
-      remote_base_dir=args.remote_dir or os.getenv('SYNC_DIR', '~/sync-files/ai-agents-related'),
-      windows_user=args.windows_user or os.getenv('WIN_USER')
+        remote_user=args.remote_user or os.getenv('SYNC_USER'),
+        remote_host=args.remote_host or os.getenv('SYNC_HOST'),
+        remote_base_dir=args.remote_dir or os.getenv(
+            'SYNC_DIR', '~/sync-files/ai-agents-related'),
+        windows_user=args.windows_user or os.getenv('WIN_USER')
     )
+
 
 @dataclass
 class FileMapping:
@@ -72,15 +78,16 @@ class FileMapping:
   description: str
   is_directory: bool = False
 
+
 class ColoredFormatter(logging.Formatter):
   """Custom formatter with colors"""
 
   COLORS = {
-    'DEBUG': Colors.BLUE,
-    'INFO': Colors.BLUE,
-    'WARNING': Colors.YELLOW,
-    'ERROR': Colors.RED,
-    'CRITICAL': Colors.RED,
+      'DEBUG': Colors.BLUE,
+      'INFO': Colors.BLUE,
+      'WARNING': Colors.YELLOW,
+      'ERROR': Colors.RED,
+      'CRITICAL': Colors.RED,
   }
 
   def format(self, record: logging.LogRecord):
@@ -88,11 +95,11 @@ class ColoredFormatter(logging.Formatter):
 
     # Add symbols for different levels
     symbols = {
-      'DEBUG': 'ℹ',
-      'INFO': 'ℹ',
-      'WARNING': '⚠',
-      'ERROR': '✗',
-      'CRITICAL': '✗',
+        'DEBUG': 'ℹ',
+        'INFO': 'ℹ',
+        'WARNING': '⚠',
+        'ERROR': '✗',
+        'CRITICAL': '✗',
     }
 
     symbol = symbols.get(record.levelname, '')
@@ -105,6 +112,7 @@ class ColoredFormatter(logging.Formatter):
     record.msg = original_msg  # Reset for file handler
 
     return result
+
 
 class LoggingService:
   """Handles all logging configuration and setup"""
@@ -137,13 +145,14 @@ class LoggingService:
     log_file = Path.home() / '.sync-ai-config.log'
     file_handler = logging.FileHandler(log_file)
     file_formatter = logging.Formatter(
-      '%(asctime)s - %(levelname)s - %(message)s',
-      datefmt='%Y-%m-%d %H:%M:%S'
+        '%(asctime)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
     )
     file_handler.setFormatter(file_formatter)
     logger.addHandler(file_handler)
 
     return logger
+
 
 class ProgressReporter:
   """Handles user interface and progress reporting"""
@@ -165,11 +174,12 @@ class ProgressReporter:
     """Print operation summary"""
     self.logger.info("═" * 50)
     self.logger.info(
-      "%s Summary: %d succeeded, %d failed", operation, self.success_count, self.fail_count
+        "%s Summary: %d succeeded, %d failed", operation, self.success_count, self.fail_count
     )
 
     if dry_run:
-      self.logger.info("Dry run completed - no files were actually transferred")
+      self.logger.info(
+          "Dry run completed - no files were actually transferred")
 
   def show_config(self, config: Config) -> None:
     """Show current configuration"""
@@ -178,9 +188,11 @@ class ProgressReporter:
     self.logger.info("  Remote User: %s", config.remote_user)
     self.logger.info("  Remote Host: %s", config.remote_host)
     self.logger.info("  Remote Dir:  %s", config.remote_base_dir)
-    self.logger.info("  Windows User: %s", config.windows_user or "Not configured")
+    self.logger.info("  Windows User: %s",
+                     config.windows_user or "Not configured")
     win_dir = config.windows_user_dir
-    self.logger.info("  Windows Dir: %s", win_dir if win_dir else "Not configured")
+    self.logger.info("  Windows Dir: %s",
+                     win_dir if win_dir else "Not configured")
     self.logger.info("═" * 50)
 
   def list_mappings(self, mappings: List[FileMapping], config: Config) -> None:
@@ -199,6 +211,7 @@ class ProgressReporter:
     self.success_count = 0
     self.fail_count = 0
 
+
 class FileMappingProvider:
   """Provides file mapping configurations based on system setup"""
 
@@ -210,77 +223,78 @@ class FileMappingProvider:
     c = self.config
 
     mappings = [
-      FileMapping(
-        c.local_home / '.claude.json',
-        '.claude.linux.json',
-        'Claude Linux config'
-      ),
-      FileMapping(
-        c.local_home / '.claude' / 'CLAUDE.md',
-        '.claude/CLAUDE.md',
-        'CLAUDE.md (Linux)'
-      ),
-      FileMapping(
-        c.local_home / '.claude' / 'agents',
-        '.claude/agents/',
-        'Claude agents directory (Linux)',
-        is_directory=True
-      ),
-      FileMapping(
-        c.local_home / '.gemini' / 'settings.json',
-        '.gemini/settings.linux.json',
-        'Gemini Linux settings'
-      ),
-      FileMapping(
-        c.local_home / '.gemini' / 'GEMINI.md',
-        '.gemini/GEMINI.md',
-        'GEMINI.md (Linux)'
-      ),
+        FileMapping(
+            c.local_home / '.claude.json',
+            '.claude.linux.json',
+            'Claude Linux config'
+        ),
+        FileMapping(
+            c.local_home / '.claude' / 'CLAUDE.md',
+            '.claude/CLAUDE.md',
+            'CLAUDE.md (Linux)'
+        ),
+        FileMapping(
+            c.local_home / '.claude' / 'agents',
+            '.claude/agents/',
+            'Claude agents directory (Linux)',
+            is_directory=True
+        ),
+        FileMapping(
+            c.local_home / '.gemini' / 'settings.json',
+            '.gemini/settings.linux.json',
+            'Gemini Linux settings'
+        ),
+        FileMapping(
+            c.local_home / '.gemini' / 'GEMINI.md',
+            '.gemini/GEMINI.md',
+            'GEMINI.md (Linux)'
+        ),
     ]
 
     # Add Windows mappings only if Windows username is configured
     if c.windows_user and c.windows_user_dir:
       win_dir = c.windows_user_dir
       mappings.extend([
-        FileMapping(
-          win_dir / '.claude.json',
-          '.claude.windows.json',
-          'Claude Windows config'
-        ),
-        FileMapping(
-          win_dir / '.claude' / 'CLAUDE.md',
-          '.claude/CLAUDE.md',
-          'CLAUDE.md (Windows)'
-        ),
-        FileMapping(
-          win_dir / '.claude' / 'agents',
-          '.claude/agents/',
-          'Claude agents directory (Windows)',
-          is_directory=True
-        ),
-        FileMapping(
-          win_dir / '.gemini' / 'settings.json',
-          '.gemini/settings.windows.json',
-          'Gemini Windows settings'
-        ),
-        FileMapping(
-          win_dir / '.gemini' / 'GEMINI.md',
-          '.gemini/GEMINI.md',
-          'GEMINI.md (Windows)'
-        ),
+          FileMapping(
+              win_dir / '.claude.json',
+              '.claude.windows.json',
+              'Claude Windows config'
+          ),
+          FileMapping(
+              win_dir / '.claude' / 'CLAUDE.md',
+              '.claude/CLAUDE.md',
+              'CLAUDE.md (Windows)'
+          ),
+          FileMapping(
+              win_dir / '.claude' / 'agents',
+              '.claude/agents/',
+              'Claude agents directory (Windows)',
+              is_directory=True
+          ),
+          FileMapping(
+              win_dir / '.gemini' / 'settings.json',
+              '.gemini/settings.windows.json',
+              'Gemini Windows settings'
+          ),
+          FileMapping(
+              win_dir / '.gemini' / 'GEMINI.md',
+              '.gemini/GEMINI.md',
+              'GEMINI.md (Windows)'
+          ),
       ])
 
     # Add script itself
     script_path = Path(__file__).resolve()
     mappings.append(
-      FileMapping(
-        script_path,
-        script_path.name,
-        'Sync script'
-      )
+        FileMapping(
+            script_path,
+            script_path.name,
+            'Sync script'
+        )
     )
 
     return mappings
+
 
 class RemoteOperations:
   """Handles all remote server interactions via SSH and rsync"""
@@ -292,19 +306,21 @@ class RemoteOperations:
 
   def check_connectivity(self) -> bool:
     """Check SSH connectivity to remote server"""
-    self.logger.info("Checking SSH connectivity to %s...", self.config.remote_url)
+    self.logger.info("Checking SSH connectivity to %s...",
+                     self.config.remote_url)
 
     try:
       result = subprocess.run(
-        ['ssh', '-o', 'ConnectTimeout=5', '-o', 'BatchMode=yes',
-        self.config.remote_url, 'echo', 'Connected'],
-        capture_output=True,
-        text=True,
-        timeout=10
+          ['ssh', '-o', 'ConnectTimeout=5', '-o', 'BatchMode=yes',
+           self.config.remote_url, 'echo', 'Connected'],
+          capture_output=True,
+          text=True,
+          timeout=10
       )
 
       if result.returncode == 0:
-        self.logger.info("%s✓ SSH connection successful%s", Colors.GREEN, Colors.NC)
+        self.logger.info("%s✓ SSH connection successful%s",
+                         Colors.GREEN, Colors.NC)
         return True
       else:
         self.logger.error("Cannot connect to %s", self.config.remote_url)
@@ -323,9 +339,9 @@ class RemoteOperations:
 
     try:
       subprocess.run(
-        ['ssh', self.config.remote_url, f'mkdir -p {path}'],
-        check=True,
-        capture_output=True
+          ['ssh', self.config.remote_url, f'mkdir -p {path}'],
+          check=True,
+          capture_output=True
       )
       return True
     except subprocess.CalledProcessError as e:
@@ -340,7 +356,7 @@ class RemoteOperations:
 
     try:
       cmd = ['rsync'] + self.rsync_opts.copy()
-      
+
       # Add recursive flag for directories
       if is_directory:
         if '-r' not in cmd:
@@ -348,7 +364,7 @@ class RemoteOperations:
         # Ensure source ends with / for directory sync
         if not source.endswith('/'):
           source += '/'
-      
+
       cmd.extend([source, dest])
       result = subprocess.run(cmd, capture_output=True, text=True)
 
@@ -356,7 +372,8 @@ class RemoteOperations:
         print(result.stdout)
 
       if result.returncode == 0:
-        self.logger.info("%s✓ Synced %s%s", Colors.GREEN, description, Colors.NC)
+        self.logger.info("%s✓ Synced %s%s", Colors.GREEN,
+                         description, Colors.NC)
         return True
       else:
         self.logger.error("Failed to sync %s: %s", description, result.stderr)
@@ -365,6 +382,7 @@ class RemoteOperations:
     except Exception as e:
       self.logger.error("Error syncing %s: %s", description, e)
       return False
+
 
 class LocalFileOperations:
   """Handles local file system operations"""
@@ -389,17 +407,17 @@ class LocalFileOperations:
       if is_directory:
         # For directories, ensure parent of destination exists
         self.ensure_directory(dest.parent / dest.name)
-        
+
         import shutil
         if dest.exists():
           shutil.rmtree(dest)
         shutil.copytree(source, dest)
       else:
         self.ensure_directory(dest)
-        
+
         import shutil
         shutil.copy2(source, dest)
-      
+
       self.logger.info("Copied %s", description)
       return True
 
@@ -411,10 +429,11 @@ class LocalFileOperations:
     """Check if file exists"""
     return path.exists()
 
+
 class BackupManager:
   """Manages backup operations for both local and remote files"""
 
-  def __init__(self, config: Config, remote_ops: RemoteOperations, 
+  def __init__(self, config: Config, remote_ops: RemoteOperations,
                local_ops: LocalFileOperations, logger: logging.Logger):
     self.config = config
     self.remote_ops = remote_ops
@@ -429,15 +448,15 @@ class BackupManager:
 
     try:
       subprocess.run(
-        ['ssh', self.config.remote_url,
-        f"mkdir -p {backup_dir} && "
-        f"cp {self.config.remote_base_dir}/*.json "
-        f"{self.config.remote_base_dir}/*.md "
-        f"{self.config.remote_base_dir}/*.py "
-        f"{self.config.remote_base_dir}/*.sh "
-        f"{backup_dir}/ 2>/dev/null || true"],
-        shell=False,
-        capture_output=True
+          ['ssh', self.config.remote_url,
+           f"mkdir -p {backup_dir} && "
+           f"cp {self.config.remote_base_dir}/*.json "
+           f"{self.config.remote_base_dir}/*.md "
+           f"{self.config.remote_base_dir}/*.py "
+           f"{self.config.remote_base_dir}/*.sh "
+           f"{backup_dir}/ 2>/dev/null || true"],
+          shell=False,
+          capture_output=True
       )
       self.logger.info("%s✓ Remote backup created%s", Colors.GREEN, Colors.NC)
       return True
@@ -468,11 +487,12 @@ class BackupManager:
       self.logger.info("%s✓ Local backup created%s", Colors.GREEN, Colors.NC)
     return success
 
+
 class PushOperation:
   """Handles push operation (local → remote)"""
 
   def __init__(self, config: Config, logger: logging.Logger, progress_reporter: ProgressReporter,
-               file_mapping_provider: FileMappingProvider, remote_ops: RemoteOperations, 
+               file_mapping_provider: FileMappingProvider, remote_ops: RemoteOperations,
                local_ops: LocalFileOperations, dry_run: bool = False):
     self.config = config
     self.logger = logger
@@ -492,21 +512,24 @@ class PushOperation:
     linux_claude_path = self.config.local_home / '.claude' / 'CLAUDE.md'
 
     if self.local_ops.file_exists(windows_claude):
-      self.local_ops.copy_file(windows_claude, linux_claude_path, "CLAUDE.md from Windows to Linux")
+      self.local_ops.copy_file(
+          windows_claude, linux_claude_path, "CLAUDE.md from Windows to Linux")
 
-    # Copy GEMINI.md from Windows to Linux  
+    # Copy GEMINI.md from Windows to Linux
     windows_gemini = self.config.windows_user_dir / '.gemini' / 'GEMINI.md'
     linux_gemini_path = self.config.local_home / '.gemini' / 'GEMINI.md'
 
     if self.local_ops.file_exists(windows_gemini):
-      self.local_ops.copy_file(windows_gemini, linux_gemini_path, "GEMINI.md from Windows to Linux")
+      self.local_ops.copy_file(
+          windows_gemini, linux_gemini_path, "GEMINI.md from Windows to Linux")
 
     # Copy agents directory from Windows to Linux
     windows_agents = self.config.windows_user_dir / '.claude' / 'agents'
     linux_agents_path = self.config.local_home / '.claude' / 'agents'
 
     if self.local_ops.file_exists(windows_agents):
-      self.local_ops.copy_file(windows_agents, linux_agents_path, "Claude agents from Windows to Linux", is_directory=True)
+      self.local_ops.copy_file(windows_agents, linux_agents_path,
+                               "Claude agents from Windows to Linux", is_directory=True)
 
   def filter_mappings(self, mappings: List[FileMapping]) -> List[FileMapping]:
     """Filter out Windows files that should be synced from Linux copies"""
@@ -515,9 +538,9 @@ class PushOperation:
 
     # Files to skip because they're synced from Linux copies
     skip_paths = {
-      self.config.windows_user_dir / '.claude' / 'CLAUDE.md',
-      self.config.windows_user_dir / '.gemini' / 'GEMINI.md', 
-      self.config.windows_user_dir / '.claude' / 'agents'
+        self.config.windows_user_dir / '.claude' / 'CLAUDE.md',
+        self.config.windows_user_dir / '.gemini' / 'GEMINI.md',
+        self.config.windows_user_dir / '.claude' / 'agents'
     }
 
     return [mapping for mapping in mappings if mapping.local_path not in skip_paths]
@@ -551,90 +574,53 @@ class PushOperation:
     self.progress_reporter.print_summary("Push", self.dry_run)
     return self.progress_reporter.fail_count == 0
 
+
 class PullOperation:
   """Handles pull operation (remote → local)"""
 
   def __init__(self, config: Config, logger: logging.Logger, progress_reporter: ProgressReporter,
-               remote_ops: RemoteOperations, local_ops: LocalFileOperations, dry_run: bool = False):
+               file_mapping_provider: FileMappingProvider, remote_ops: RemoteOperations,
+               local_ops: LocalFileOperations, dry_run: bool = False):
     self.config = config
     self.logger = logger
     self.progress_reporter = progress_reporter
+    self.file_mapping_provider = file_mapping_provider
     self.remote_ops = remote_ops
     self.local_ops = local_ops
     self.dry_run = dry_run
 
-  def build_pull_operations(self) -> List[Tuple[str, Path, str]]:
-    """Build list of pull operations (remote_file, local_path, description)"""
-    # Define Linux pull operations (always included)
-    pull_ops = [
-      (f"{self.config.remote_base_dir}/.claude.linux.json",
-      self.config.local_home / '.claude.json',
-      "Claude Linux config"),
+  def get_pull_mappings(self) -> List[FileMapping]:
+    """Get filtered FileMapping list for pull operations"""
+    all_mappings = self.file_mapping_provider.get_mappings()
 
-      (f"{self.config.remote_base_dir}/.claude/CLAUDE.md",
-      self.config.local_home / '.claude' / 'CLAUDE.md',
-      "CLAUDE.md (Linux)"),
-
-      (f"{self.config.remote_base_dir}/.claude/agents/",
-      self.config.local_home / '.claude' / 'agents',
-      "Claude agents directory (Linux)"),
-
-      (f"{self.config.remote_base_dir}/.gemini/settings.linux.json",
-      self.config.local_home / '.gemini' / 'settings.json',
-      "Gemini Linux settings"),
-
-      (f"{self.config.remote_base_dir}/.gemini/GEMINI.md",
-      self.config.local_home / '.gemini' / 'GEMINI.md',
-      "GEMINI.md (Linux)"),
+    # Filter out script file (not pulled from remote)
+    pull_mappings = [
+        mapping for mapping in all_mappings
+        if mapping.description != 'Sync script'
     ]
 
-    # Add Windows pull operations if Windows user is configured
-    if self.config.windows_user_dir:
-      pull_ops.extend([
-        (f"{self.config.remote_base_dir}/.claude.windows.json",
-        self.config.windows_user_dir / '.claude.json',
-        "Claude Windows config"),
-
-        (f"{self.config.remote_base_dir}/.claude/CLAUDE.md",
-        self.config.windows_user_dir / '.claude' / 'CLAUDE.md',
-        "CLAUDE.md (Windows)"),
-
-        (f"{self.config.remote_base_dir}/.claude/agents/",
-        self.config.windows_user_dir / '.claude' / 'agents',
-        "Claude agents directory (Windows)"),
-
-        (f"{self.config.remote_base_dir}/.gemini/settings.windows.json",
-        self.config.windows_user_dir / '.gemini' / 'settings.json',
-        "Gemini Windows settings"),
-
-        (f"{self.config.remote_base_dir}/.gemini/GEMINI.md",
-        self.config.windows_user_dir / '.gemini' / 'GEMINI.md',
-        "GEMINI.md (Windows)"),
-      ])
-
-    return pull_ops
+    return pull_mappings
 
   def execute(self) -> bool:
     """Execute pull operation"""
     self.logger.info("Starting PULL operation (remote → local)...")
     self.progress_reporter.reset_counters()
 
-    pull_ops = self.build_pull_operations()
+    pull_mappings = self.get_pull_mappings()
 
-    for remote_file, local_path, description in pull_ops:
-      # Determine if this is a directory based on remote path
-      is_directory = remote_file.endswith('/') or 'directory' in description.lower()
-      
-      if is_directory:
+    for mapping in pull_mappings:
+      if mapping.is_directory:
         # For directories, ensure the parent directory exists
-        self.local_ops.ensure_directory(local_path.parent / local_path.name)
+        self.local_ops.ensure_directory(
+            mapping.local_path.parent / mapping.local_path.name)
       else:
         # For files, ensure the directory exists
-        self.local_ops.ensure_directory(local_path)
-      
+        self.local_ops.ensure_directory(mapping.local_path)
+
+      remote_file = f"{self.config.remote_base_dir}/{mapping.remote_name}"
       remote_path = f"{self.config.remote_url}:{remote_file}"
 
-      if self.remote_ops.sync_file(remote_path, str(local_path), description, is_directory):
+      if self.remote_ops.sync_file(remote_path, str(mapping.local_path), mapping.description, mapping.is_directory):
         self.progress_reporter.track_success()
       else:
         self.progress_reporter.track_failure()
@@ -646,9 +632,9 @@ class PullOperation:
 def create_argument_parser() -> argparse.ArgumentParser:
   """Create and configure the argument parser"""
   parser = argparse.ArgumentParser(
-    description='Sync AI agent configuration files between local machine and remote server',
-    formatter_class=argparse.RawDescriptionHelpFormatter,
-    epilog="""
+      description='Sync AI agent configuration files between local machine and remote server',
+      formatter_class=argparse.RawDescriptionHelpFormatter,
+      epilog="""
 EXAMPLES:
   %(prog)s push                       # Push configs to remote
   %(prog)s pull                       # Pull configs from remote
@@ -674,46 +660,47 @@ ENVIRONMENT VARIABLES:
   )
 
   parser.add_argument('operation', nargs='?',
-           choices=['push', 'pull'],
-           help='Operation to perform')
+                      choices=['push', 'pull'],
+                      help='Operation to perform')
 
 # Remote configuration
   remote_group = parser.add_argument_group('remote configuration')
-  remote_group.add_argument('-u', '--remote-user', 
-              help='Remote SSH username (overrides SYNC_USER)')
+  remote_group.add_argument('-u', '--remote-user',
+                            help='Remote SSH username (overrides SYNC_USER)')
   remote_group.add_argument('-H', '--remote-host',
-              help='Remote SSH host (overrides SYNC_HOST)')
+                            help='Remote SSH host (overrides SYNC_HOST)')
   remote_group.add_argument('-d', '--remote-dir',
-              help='Remote directory path (overrides SYNC_DIR)')
+                            help='Remote directory path (overrides SYNC_DIR)')
 
   # Local configuration
   local_group = parser.add_argument_group('local configuration')
   local_group.add_argument('-w', '--windows-user',
-             help='Windows username (optional - enables Windows file sync)')
+                           help='Windows username (optional - enables Windows file sync)')
 
   # Operation options
   op_group = parser.add_argument_group('operation options')
   op_group.add_argument('-v', '--verbose', action='store_true',
-            help='Enable verbose output')
+                        help='Enable verbose output')
   op_group.add_argument('-q', '--quiet', action='store_true',
-            help='Suppress non-error output')
+                        help='Suppress non-error output')
   op_group.add_argument('-n', '--dry-run', action='store_true',
-            help='Perform a dry run (show what would be synced)')
+                        help='Perform a dry run (show what would be synced)')
   op_group.add_argument('-b', '--backup', action='store_true',
-            help='Create timestamped backup before syncing')
+                        help='Create timestamped backup before syncing')
 
   # Info options
   info_group = parser.add_argument_group('information options')
   info_group.add_argument('-c', '--check', action='store_true',
-             help='Only check connectivity')
+                          help='Only check connectivity')
   info_group.add_argument('-l', '--list', action='store_true',
-             help='List all file mappings')
+                          help='List all file mappings')
   info_group.add_argument('--config', action='store_true',
-             help='Show current configuration')
-  info_group.add_argument('--version', action='version', 
-             version='%(prog)s 2.1.0')
+                          help='Show current configuration')
+  info_group.add_argument('--version', action='version',
+                          version='%(prog)s 2.1.0')
 
   return parser
+
 
 def main():
   parser = create_argument_parser()
@@ -731,23 +718,26 @@ def main():
     if not args.operation:
       parser.error("Operation (push/pull) is required")
 
-  # Validate required configuration (skip for info-only operations)  
+  # Validate required configuration (skip for info-only operations)
   if not (args.list or args.config):
     missing_params: List[str] = []
     if not config.remote_user:
-      missing_params.append("remote username (use --remote-user or set SYNC_USER)")
+      missing_params.append(
+          "remote username (use --remote-user or set SYNC_USER)")
     if not config.remote_host:
       missing_params.append("remote host (use --remote-host or set SYNC_HOST)")
 
     if missing_params:
-      parser.error(f"Missing required configuration: {', '.join(missing_params)}")
+      parser.error(
+          f"Missing required configuration: {', '.join(missing_params)}")
 
   # Initialize services
-  logging_service = LoggingService('sync-ai-config', verbose=args.verbose, quiet=args.quiet)
+  logging_service = LoggingService(
+      'sync-ai-config', verbose=args.verbose, quiet=args.quiet)
   logger = logging_service.get_logger()
   progress_reporter = ProgressReporter(logger)
   file_mapping_provider = FileMappingProvider(config)
-  
+
   # Rsync options
   rsync_opts = ['-az', '--update', '--stats', '--human-readable']
   if args.verbose:
@@ -756,16 +746,16 @@ def main():
     rsync_opts.append('-q')
   if args.dry_run:
     rsync_opts.append('--dry-run')
-  
+
   remote_ops = RemoteOperations(config, rsync_opts, logger)
   local_ops = LocalFileOperations(logger)
   backup_manager = BackupManager(config, remote_ops, local_ops, logger)
 
   # Initialize operation classes
   push_operation = PushOperation(config, logger, progress_reporter, file_mapping_provider,
-                                remote_ops, local_ops, args.dry_run)
-  pull_operation = PullOperation(config, logger, progress_reporter, remote_ops, 
-                                local_ops, args.dry_run)
+                                 remote_ops, local_ops, args.dry_run)
+  pull_operation = PullOperation(config, logger, progress_reporter, file_mapping_provider,
+                                 remote_ops, local_ops, args.dry_run)
 
   try:
     # Show config if requested
@@ -830,6 +820,7 @@ def main():
       import traceback
       traceback.print_exc()
     return 1
+
 
 if __name__ == '__main__':
   sys.exit(main())
