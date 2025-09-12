@@ -6,6 +6,10 @@ The script is designed to be run from a Linux environment (typically via WSL). T
 
 ## Key operations and logic:
 
+The program is a CLI utility with two main subcommands: `push` and `pull`. It includes options for specifying remote user, host, and Windows user
+
+Only when the Windows user is specified, the Windows-specific operations are performed.
+
 **push**:
 
 - Copies configuration files from the local machine to the remote server.
@@ -54,6 +58,6 @@ rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.gemini/settings.windows
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.gemini/GEMINI.md /mnt/c/Users/{WIN_USER}/.gemini/GEMINI.md
 ```
 
-The program is a CLI utility with two main subcommands: `push` and `pull`. It includes options for specifying remote user, host, and Windows user, as well as flags for dry runs, uses `rsync` with the `--update` flag (enabled by default) and verbose output.
+## Others
 
-Only when the Windows user is specified, the Windows-specific operations are performed.
+The CLI contains one option, just `--rsync-opts`, to pass options to rsync, other than the src and dest. By default to `-avz --update --delete --human-readable --mkpath`.

@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Any, Iterable, cast
 
 # Logging
 logging.basicConfig(
@@ -24,21 +24,22 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# ANSI color codes
-
-
+# data models
 class Operation(Enum):
   PUSH = "push"
   PULL = "pull"
+
+# TODO: more data classes here
 
 
 @dataclass
 class Config:
   """Configuration for sync operations"""
-  remote_user: Optional[str]
-  remote_host: Optional[str]
+  remote_user: str
+  remote_host: str
   remote_base_dir: str
   windows_user: Optional[str]
+  rsync_opts: List[str]
 
   @property
   def windows_user_dir(self) -> Optional[Path]:
@@ -62,12 +63,37 @@ class Config:
 
     Priority: Command line args > Environment variables > Defaults
     """
+    # Resolve values with precedence: CLI > env > defaults
+    remote_user = args.remote_user or os.getenv('SYNC_USER')
+    remote_host = args.remote_host or os.getenv('SYNC_HOST')
+    remote_base_dir = args.remote_dir or os.getenv('SYNC_DIR', '~/sync-files/ai-agents-related')
+    windows_user = args.windows_user or os.getenv('WIN_USER')
+
+    if not remote_user:
+      raise ValueError("Remote user must be configured")
+    if not remote_host:
+      raise ValueError("Remote host must be configured")
+
+    rsync_raw = getattr(args, 'rsync_opts', None)
+    rsync_opts: List[str]
+    if isinstance(rsync_raw, str):
+      rsync_opts = rsync_raw.split()
+    elif isinstance(rsync_raw, list):
+      rsync_opts = [str(x) for x in cast(List[Any], rsync_raw)]
+    elif rsync_raw is None:
+      rsync_opts = []
+    else:
+      try:
+        rsync_opts = [str(x) for x in cast(Iterable[Any], rsync_raw)]
+      except TypeError:
+        rsync_opts = [str(rsync_raw)]
+
     return cls(
-        remote_user=args.remote_user or os.getenv('SYNC_USER'),
-        remote_host=args.remote_host or os.getenv('SYNC_HOST'),
-        remote_base_dir=args.remote_dir or os.getenv(
-            'SYNC_DIR', '~/sync-files/ai-agents-related'),
-        windows_user=args.windows_user or os.getenv('WIN_USER')
+        remote_user=remote_user,
+        remote_host=remote_host,
+        remote_base_dir=remote_base_dir,
+        windows_user=windows_user,
+        rsync_opts=rsync_opts
     )
 
 
@@ -78,7 +104,7 @@ def create_argument_parser() -> argparse.ArgumentParser:
   )
 
   parser.add_argument('operation', nargs='?',
-                      type=lambda x: Operation(x),
+                      type=Operation,
                       choices=list(Operation),
                       help='Operation to perform')
 
@@ -108,7 +134,7 @@ def create_argument_parser() -> argparse.ArgumentParser:
   # Info options
   info_group = parser.add_argument_group('information options')
   info_group.add_argument('--version', action='version',
-                          version='%(prog)s 2.5.0')
+                          version='%(prog)s 3.0.0')
 
   return parser
 
@@ -125,10 +151,10 @@ def main() -> int:
   # Create config
   config = Config.from_args(args)
 
-  logger.info("AI Config Sync - Starting %s operation",
-              args.operation.value if args.operation else "info")
+  logger.info("AI Config Sync")
   logger.debug("Configuration: %s", config)
 
+  # TODO: menual DI that is enough to get file list
   # TODO: Implement file operations
   if args.list:
     logger.info("File mappings list requested")
@@ -137,6 +163,8 @@ def main() -> int:
   if not args.operation:
     parser.error("Operation (push/pull) is required")
 
+  logger.info("Start %s operation", args.operation.value)
+  # TODO: complete the DI, only setup the classes for the cooresponding operation
   logger.info("Operation %s completed successfully", args.operation.value)
   return 0
 
