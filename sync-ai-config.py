@@ -143,16 +143,16 @@ ALL_FILE_MAPPINGS = [
 
   # Codex
   FileMapping(Path(".codex/config.toml"), None,
-              KeepMode.PREFER_WINDOWS, description="Codex config"),
+              KeepMode.KEEP_BOTH, description="Codex config"),
   FileMapping(Path(".codex/AGENTS.md"), None,
               KeepMode.PREFER_WINDOWS, description="Codex agents"),
 
   # Cline
-  FileMapping(Path("Cline/Rules/"), Path("Documents/Cline/Rules/"),
-              KeepMode.PREFER_WINDOWS, is_directory=True, description="Cline rules"),
   FileMapping(Path(".vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"),
               Path("AppData/Roaming/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"),
               KeepMode.KEEP_BOTH, description="Cline MCP settings"),
+  FileMapping(Path("Cline/Rules/"), Path("Documents/Cline/Rules/"),
+              KeepMode.PREFER_WINDOWS, is_directory=True, description="Cline rules"),
 ]
 
 ### Core Logic ###
