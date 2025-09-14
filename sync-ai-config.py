@@ -46,7 +46,8 @@ class FileMapping:
   """
   Windows, Linux, Remote, 3 way file mapping
 
-  All relative paths are relative to the home directory.
+  For Windows and Linux, the paths are relative to the home directory.
+  For Remote, the paths are relative to a remote directory specified in the config.
   """
   relative_path: Path                      # e.g., ".claude/CLAUDE.md"
   # Windows specific relative path
@@ -59,9 +60,13 @@ class FileMapping:
 
 @dataclass
 class RsyncTask:
-  """Represents a single rsync operation with source, destination, and metadata."""
-  src: Path               # Absolute source path
-  dest: Path              # Absolute destination path
+  """
+  Represents a single rsync operation with source, destination, and metadata.
+  
+  The source and destination can be either a local path in Path object or a remote SSH/SFTP path in str
+  """
+  src: str | Path
+  dest: str | Path
   description: str
   is_directory: bool = False
 
@@ -182,12 +187,12 @@ class TaskBuilder:
     """Build rsync tasks for pulling files from remote to local."""
     tasks: List[RsyncTask] = []
     for mapping in mappings:
-      if mapping.keep_mode == KeepMode.PREFER_WINDOWS:
-        tasks.extend(self._remote_to_linux_then_windows(mapping))
-      elif mapping.keep_mode == KeepMode.PREFER_LINUX:
-        tasks.extend(self._remote_to_linux_then_windows(mapping))
-      elif mapping.keep_mode == KeepMode.KEEP_BOTH:
+      if mapping.keep_mode == KeepMode.KEEP_BOTH:
         tasks.extend(self._remote_separately_to_both(mapping))
+      elif mapping.keep_mode in (KeepMode.PREFER_WINDOWS, KeepMode.PREFER_LINUX):
+        # the pull logic is the same for both prefer modes
+        # since only one file pushed to remote (the prefer one)
+        tasks.extend(self._remote_to_linux_then_windows(mapping))
     return tasks
 
   def _windows_to_linux_then_remote(self, mapping: FileMapping) -> List[RsyncTask]:
@@ -200,9 +205,6 @@ class TaskBuilder:
     return []
 
   def _remote_to_linux_then_windows(self, mapping: FileMapping) -> List[RsyncTask]:
-    return []
-
-  def _remote_to_windows_then_linux(self, mapping: FileMapping) -> List[RsyncTask]:
     return []
 
   def _remote_separately_to_both(self, mapping: FileMapping) -> List[RsyncTask]:
