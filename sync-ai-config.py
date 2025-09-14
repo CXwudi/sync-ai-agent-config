@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional, Any, Iterable, cast
+from typing import Any, List, Optional, cast
 
 # Logging
 logging.basicConfig(
@@ -24,12 +24,46 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# data models
+### Data Model ###
+
+
 class Operation(Enum):
+  """Available sync operations."""
   PUSH = "push"
   PULL = "pull"
 
-# TODO: more data classes here
+
+class KeepMode(Enum):
+  """Mode of keeping files between Linux and Windows"""
+  PREFER_WINDOWS = "prefer_windows"  # Windows→Linux→Remote
+  PREFER_LINUX = "prefer_linux"      # Linux→Windows→Remote
+  # Windows→Remote(.windows) + Linux→Remote(.linux)
+  KEEP_BOTH = "keep_both"
+
+
+@dataclass
+class FileMapping:
+  """
+  Windows, Linux, Remote, 3 way file mapping
+
+  All relative paths are relative to the home directory.
+  """
+  relative_path: Path                      # e.g., ".claude/CLAUDE.md"
+  # Windows specific relative path
+  # e.g. Cline prompts folder in windows is "Documents/Cline/Rules/" where as in linux it is "Cline/Rules/"
+  windows_relative_path: Optional[Path]
+  keep_mode: KeepMode
+  is_directory: bool = False
+  description: str = ""
+
+
+@dataclass
+class RsyncTask:
+  """Represents a single rsync operation with source, destination, and metadata."""
+  src: Path               # Absolute source path
+  dest: Path              # Absolute destination path
+  description: str
+  is_directory: bool = False
 
 
 @dataclass
@@ -66,7 +100,8 @@ class Config:
     # Resolve values with precedence: CLI > env > defaults
     remote_user = args.remote_user or os.getenv('SYNC_USER')
     remote_host = args.remote_host or os.getenv('SYNC_HOST')
-    remote_base_dir = args.remote_dir or os.getenv('SYNC_DIR', '~/sync-files/ai-agents-related')
+    remote_base_dir = args.remote_dir or os.getenv(
+        'SYNC_DIR', '~/sync-files/ai-agents-related')
     windows_user = args.windows_user or os.getenv('WIN_USER')
 
     if not remote_user:
@@ -75,18 +110,11 @@ class Config:
       raise ValueError("Remote host must be configured")
 
     rsync_raw = getattr(args, 'rsync_opts', None)
-    rsync_opts: List[str]
+    rsync_opts: List[str] = []
     if isinstance(rsync_raw, str):
       rsync_opts = rsync_raw.split()
     elif isinstance(rsync_raw, list):
       rsync_opts = [str(x) for x in cast(List[Any], rsync_raw)]
-    elif rsync_raw is None:
-      rsync_opts = []
-    else:
-      try:
-        rsync_opts = [str(x) for x in cast(Iterable[Any], rsync_raw)]
-      except TypeError:
-        rsync_opts = [str(rsync_raw)]
 
     return cls(
         remote_user=remote_user,
@@ -96,6 +124,42 @@ class Config:
         rsync_opts=rsync_opts
     )
 
+### File Mappings ###
+
+ALL_FILE_MAPPINGS = [
+  # Claude Code
+  FileMapping(Path(".claude.json"), None, KeepMode.KEEP_BOTH,
+              description="Claude config"),
+  FileMapping(Path(".claude/CLAUDE.md"), None,
+              KeepMode.PREFER_WINDOWS, description="Claude instructions"),
+  FileMapping(Path(".claude/agents/"), None, KeepMode.PREFER_WINDOWS,
+              is_directory=True, description="Claude agents"),
+
+  # Gemini CLI
+  FileMapping(Path(".gemini/settings.json"), None,
+              KeepMode.KEEP_BOTH, description="Gemini settings"),
+  FileMapping(Path(".gemini/GEMINI.md"), None,
+              KeepMode.PREFER_WINDOWS, description="Gemini instructions"),
+
+  # Codex
+  FileMapping(Path(".codex/config.toml"), None,
+              KeepMode.PREFER_WINDOWS, description="Codex config"),
+  FileMapping(Path(".codex/AGENTS.md"), None,
+              KeepMode.PREFER_WINDOWS, description="Codex agents"),
+
+  # Cline
+  FileMapping(Path("Cline/Rules/"), Path("Documents/Cline/Rules/"),
+              KeepMode.PREFER_WINDOWS, is_directory=True, description="Cline rules"),
+  FileMapping(Path(".vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"),
+              Path("AppData/Roaming/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"),
+              KeepMode.KEEP_BOTH, description="Cline MCP settings"),
+]
+
+### Core Logic ###
+
+# TODO
+
+### Main ###
 
 def create_argument_parser() -> argparse.ArgumentParser:
   """Create and configure the argument parser, TODO: need modification from newest design doc"""
