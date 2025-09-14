@@ -126,40 +126,91 @@ class Config:
 
 ### File Mappings ###
 
+
 ALL_FILE_MAPPINGS = [
-  # Claude Code
-  FileMapping(Path(".claude.json"), None, KeepMode.KEEP_BOTH,
-              description="Claude config"),
-  FileMapping(Path(".claude/CLAUDE.md"), None,
-              KeepMode.PREFER_WINDOWS, description="Claude instructions"),
-  FileMapping(Path(".claude/agents/"), None, KeepMode.PREFER_WINDOWS,
-              is_directory=True, description="Claude agents"),
+    # Claude Code
+    FileMapping(Path(".claude.json"), None, KeepMode.KEEP_BOTH,
+                description="Claude config"),
+    FileMapping(Path(".claude/CLAUDE.md"), None,
+                KeepMode.PREFER_WINDOWS, description="Claude instructions"),
+    FileMapping(Path(".claude/agents/"), None, KeepMode.PREFER_WINDOWS,
+                is_directory=True, description="Claude agents"),
 
-  # Gemini CLI
-  FileMapping(Path(".gemini/settings.json"), None,
-              KeepMode.KEEP_BOTH, description="Gemini settings"),
-  FileMapping(Path(".gemini/GEMINI.md"), None,
-              KeepMode.PREFER_WINDOWS, description="Gemini instructions"),
+    # Gemini CLI
+    FileMapping(Path(".gemini/settings.json"), None,
+                KeepMode.KEEP_BOTH, description="Gemini settings"),
+    FileMapping(Path(".gemini/GEMINI.md"), None,
+                KeepMode.PREFER_WINDOWS, description="Gemini instructions"),
 
-  # Codex
-  FileMapping(Path(".codex/config.toml"), None,
-              KeepMode.KEEP_BOTH, description="Codex config"),
-  FileMapping(Path(".codex/AGENTS.md"), None,
-              KeepMode.PREFER_WINDOWS, description="Codex agents"),
+    # Codex
+    FileMapping(Path(".codex/config.toml"), None,
+                KeepMode.KEEP_BOTH, description="Codex config"),
+    FileMapping(Path(".codex/AGENTS.md"), None,
+                KeepMode.PREFER_WINDOWS, description="Codex agents"),
 
-  # Cline
-  FileMapping(Path(".vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"),
-              Path("AppData/Roaming/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"),
-              KeepMode.KEEP_BOTH, description="Cline MCP settings"),
-  FileMapping(Path("Cline/Rules/"), Path("Documents/Cline/Rules/"),
-              KeepMode.PREFER_WINDOWS, is_directory=True, description="Cline rules"),
+    # Cline
+    FileMapping(Path(".vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"),
+                Path(
+        "AppData/Roaming/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"),
+        KeepMode.KEEP_BOTH, description="Cline MCP settings"),
+    FileMapping(Path("Cline/Rules/"), Path("Documents/Cline/Rules/"),
+                KeepMode.PREFER_WINDOWS, is_directory=True, description="Cline rules"),
 ]
 
 ### Core Logic ###
 
-# TODO
+
+class TaskBuilder:
+  """Builds rsync tasks based on file mappings and keep mode"""
+
+  def __init__(self, config: Config):
+    self.config = config
+
+  def build_push_tasks(self, mappings: List[FileMapping]) -> List[RsyncTask]:
+    """Build rsync tasks for pushing files from local to remote."""
+    tasks: List[RsyncTask] = []
+    for mapping in mappings:
+      if mapping.keep_mode == KeepMode.PREFER_WINDOWS:
+        tasks.extend(self._windows_to_linux_then_remote(mapping))
+      elif mapping.keep_mode == KeepMode.PREFER_LINUX:
+        tasks.extend(self._linux_to_windows_then_remote(mapping))
+      elif mapping.keep_mode == KeepMode.KEEP_BOTH:
+        tasks.extend(self._both_to_remote_separately(mapping))
+    return tasks
+
+  def build_pull_tasks(self, mappings: List[FileMapping]) -> List[RsyncTask]:
+    """Build rsync tasks for pulling files from remote to local."""
+    tasks: List[RsyncTask] = []
+    for mapping in mappings:
+      if mapping.keep_mode == KeepMode.PREFER_WINDOWS:
+        tasks.extend(self._remote_to_linux_then_windows(mapping))
+      elif mapping.keep_mode == KeepMode.PREFER_LINUX:
+        tasks.extend(self._remote_to_linux_then_windows(mapping))
+      elif mapping.keep_mode == KeepMode.KEEP_BOTH:
+        tasks.extend(self._remote_separately_to_both(mapping))
+    return tasks
+
+  def _windows_to_linux_then_remote(self, mapping: FileMapping) -> List[RsyncTask]:
+    return []
+
+  def _linux_to_windows_then_remote(self, mapping: FileMapping) -> List[RsyncTask]:
+    return []
+
+  def _both_to_remote_separately(self, mapping: FileMapping) -> List[RsyncTask]:
+    return []
+
+  def _remote_to_linux_then_windows(self, mapping: FileMapping) -> List[RsyncTask]:
+    return []
+
+  def _remote_to_windows_then_linux(self, mapping: FileMapping) -> List[RsyncTask]:
+    return []
+
+  def _remote_separately_to_both(self, mapping: FileMapping) -> List[RsyncTask]:
+    return []
+
 
 ### Main ###
+
 
 def create_argument_parser() -> argparse.ArgumentParser:
   """Create and configure the argument parser, TODO: need modification from newest design doc"""
