@@ -344,7 +344,7 @@ class TaskBuilder:
 
   def _build_remote_path(self, relative_path: Path) -> str:
     """Build remote path string for rsync destination."""
-    return f"{self.config.remote_url}:~/{self.config.remote_base_dir / relative_path}"
+    return f"{self.config.remote_url}:{self.config.remote_base_dir / relative_path}"
 
   def _build_suffix_path(self, orig_path: Path, suffix: str) -> Path:
     """Build path with suffix added before extension"""
