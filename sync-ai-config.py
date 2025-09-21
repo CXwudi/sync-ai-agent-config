@@ -83,6 +83,7 @@ class Config:
   remote_base_dir: Path
   windows_user: Optional[str]
   rsync_opts: List[str]
+  dry_run: bool
 
   @property
   def windows_user_dir(self) -> Optional[Path]:
@@ -130,43 +131,43 @@ class Config:
         remote_host=remote_host,
         remote_base_dir=remote_base_dir,
         windows_user=windows_user,
-        rsync_opts=rsync_opts
+        rsync_opts=rsync_opts,
+        dry_run=args.dry_run
     )
 
 
-### File Mappings ###
-
-
+### Constants ###
+# File Mappings
 ALL_FILE_MAPPINGS: List[FileMapping] = [
     # Claude Code
     FileMapping(Path(".claude.json"), None, KeepMode.KEEP_BOTH,
                 description="Claude config"),
     FileMapping(Path(".claude/CLAUDE.md"), None,
-                KeepMode.PREFER_WINDOWS, description="Claude instructions"),
+                KeepMode.PREFER_WINDOWS, description="Claude prompt file"),
     FileMapping(Path(".claude/agents/"), None, KeepMode.PREFER_WINDOWS,
-                is_directory=True, description="Claude agents"),
+                is_directory=True, description="Claude subagents"),
 
     # Gemini CLI
     FileMapping(Path(".gemini/settings.json"), None,
                 KeepMode.KEEP_BOTH, description="Gemini settings"),
     FileMapping(Path(".gemini/GEMINI.md"), None,
-                KeepMode.PREFER_WINDOWS, description="Gemini instructions"),
+                KeepMode.PREFER_WINDOWS, description="Gemini prompt file"),
 
     # Codex
     FileMapping(Path(".codex/config.toml"), None,
                 KeepMode.KEEP_BOTH, description="Codex config"),
     FileMapping(Path(".codex/AGENTS.md"), None,
-                KeepMode.PREFER_WINDOWS, description="Codex agents"),
+                KeepMode.PREFER_WINDOWS, description="Codex prompt file"),
 
     # Cline
     FileMapping(Path(".vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"),
-                Path(
-        "AppData/Roaming/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"),
-        KeepMode.KEEP_BOTH, description="Cline MCP settings"),
+                Path("AppData/Roaming/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"),
+                KeepMode.KEEP_BOTH, description="Cline MCP settings for VSCode"),
     FileMapping(Path("Cline/Rules/"), Path("Documents/Cline/Rules/"),
                 KeepMode.PREFER_WINDOWS, is_directory=True, description="Cline rules"),
 ]
-
+# Default rsync options
+DEFAULT_RSYNC_OPTS = '-avz --update --delete --human-readable --mkpath'
 ### Core Logic ###
 
 
@@ -179,6 +180,7 @@ class TaskBuilder:
   def build_push_tasks(self, mappings: List[FileMapping]) -> List[RsyncTask]:
     """Build rsync tasks for pushing files from local to remote."""
     tasks: List[RsyncTask] = []
+    logger.info("Building push tasks for %d mappings", len(mappings))
     for mapping in mappings:
       if mapping.keep_mode == KeepMode.PREFER_WINDOWS:
         tasks.extend(self._windows_to_linux_then_remote(mapping))
@@ -186,11 +188,13 @@ class TaskBuilder:
         tasks.extend(self._linux_to_windows_then_remote(mapping))
       elif mapping.keep_mode == KeepMode.KEEP_BOTH:
         tasks.extend(self._both_to_remote_separately(mapping))
+    logger.info("Built %d push tasks", len(tasks))
     return tasks
 
   def build_pull_tasks(self, mappings: List[FileMapping]) -> List[RsyncTask]:
     """Build rsync tasks for pulling files from remote to local."""
     tasks: List[RsyncTask] = []
+    logger.info("Building pull tasks for %d mappings", len(mappings))
     for mapping in mappings:
       if mapping.keep_mode == KeepMode.KEEP_BOTH:
         tasks.extend(self._remote_separately_to_both(mapping))
@@ -198,6 +202,7 @@ class TaskBuilder:
         # the pull logic is the same for both prefer modes
         # since only one file pushed to remote (the prefer one)
         tasks.extend(self._remote_to_linux_then_windows(mapping))
+    logger.info("Built %d pull tasks", len(tasks))
     return tasks
 
   def _windows_to_linux_then_remote(self, mapping: FileMapping) -> List[RsyncTask]:
@@ -323,7 +328,8 @@ class TaskBuilder:
     tasks: List[RsyncTask] = []
 
     linux_path = self.config.local_home / relative_path
-    remote_relative_path_linux = self._build_suffix_path(relative_path, ".linux")
+    remote_relative_path_linux = self._build_suffix_path(
+        relative_path, ".linux")
     tasks.append(RsyncTask(
         src=self._build_remote_path(remote_relative_path_linux),
         dest=linux_path,
@@ -333,7 +339,8 @@ class TaskBuilder:
 
     if self.config.windows_user_dir is not None:
       windows_specific_relative_path: Path = windows_relative_path or relative_path
-      remote_relative_path_win = self._build_suffix_path(relative_path, ".windows")
+      remote_relative_path_win = self._build_suffix_path(
+          relative_path, ".windows")
       tasks.append(RsyncTask(
           src=self._build_remote_path(remote_relative_path_win),
           dest=self.config.windows_user_dir / windows_specific_relative_path,
@@ -360,17 +367,21 @@ class TaskExecutor:
   def __init__(self, config: Config):
     self.config = config
 
-  def execute_tasks(self, tasks: List[RsyncTask]) -> bool:
+  # TODO: return a dataclass for result
+  def execute_tasks(self, tasks: List[RsyncTask]) -> None:
     """Execute all tasks"""
     logger.info("Executing %d tasks", len(tasks))
-    return True
+    for task in tasks:
+      self._execute_one_task(task)
+    if self.config.dry_run:
+      logger.info("Dry run complete")
 
   def _execute_one_task(self, task: RsyncTask) -> bool:
     """Execute one task using rsync"""
     # Build the rsync command
 
     # Handle source and destination path
-    src = str(task.src) # convert Path to str
+    src = str(task.src)  # convert Path to str
     dest = str(task.dest)
 
     if task.is_directory:
@@ -383,7 +394,11 @@ class TaskExecutor:
     cmd = ['rsync'] + self.config.rsync_opts + [src, dest]
 
     # Log the execution
-    logger.info("Executing: %s, command: %s", task.description, f"`{' '.join(cmd)}`")
+    logger.info("Executing for %s:\n%s",
+                task.description, f"`{' '.join(cmd)}`")
+
+    if self.config.dry_run:
+      return True
 
     # Execute the command
     try:
@@ -400,7 +415,8 @@ class TaskExecutor:
         logger.info("Success: %s", task.description)
         return True
       else:
-        logger.error("Failed: %s - Return code: %d", task.description, result.returncode)
+        logger.error("Failed: %s - Return code: %d",
+                     task.description, result.returncode)
         if result.stderr:
           logger.error("Error output: %s", result.stderr.strip())
         return False
@@ -442,12 +458,12 @@ def create_argument_parser() -> argparse.ArgumentParser:
 
   # Operation options
   op_group = parser.add_argument_group('operation options')
-  op_group.add_argument('--rsync-opts', default='-avz --update --delete --human-readable --mkpath',
-                        help='Options to pass to rsync (default: "-avz --update --delete --human-readable --mkpath")')
+  op_group.add_argument('--rsync-opts', default=DEFAULT_RSYNC_OPTS,
+                        help=f'Options to pass to rsync (default: "{DEFAULT_RSYNC_OPTS}")')
   op_group.add_argument('--log-level', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'], default='INFO',
                         help='Set logging level (default: INFO)')
-  op_group.add_argument('--list', action='store_true',
-                        help='List file mappings and exit')
+  op_group.add_argument('--dry-run', action='store_true',
+                        help='Dry run: List all rsync commands, not executing')
 
   # Info options
   info_group = parser.add_argument_group('information options')
@@ -464,7 +480,7 @@ def main() -> int:
 
   # Configure log level based on CLI argument (second basicConfig call)
   numeric_level = getattr(logging, args.log_level.upper(), logging.INFO)
-  logging.basicConfig(level=numeric_level, force=True)
+  logger.setLevel(numeric_level)
 
   # Create config
   config = Config.from_args(args)
@@ -475,22 +491,22 @@ def main() -> int:
   if not args.operation:
     parser.error("Operation (push/pull) is required")
 
+  # Manual DI
   task_builder = TaskBuilder(config)
+  task_executor = TaskExecutor(config)
 
+  # Build tasks
+  logger.info("Building tasks for %s operation", args.operation.value)
   tasks: List[RsyncTask] = (
       task_builder.build_push_tasks(ALL_FILE_MAPPINGS) if args.operation == Operation.PUSH
       else task_builder.build_pull_tasks(ALL_FILE_MAPPINGS)
   )
-
-  if args.list:
-    logger.info("Listing file mappings: ")
-    for i, task in enumerate(tasks):
-      logger.info("%d: %s", i, task)
-    return 0
+  logger.debug("Built Tasks: %s", tasks)
 
   # Execute tasks
-  logger.info("Start %s operation", args.operation.value)
-  logger.info("Operation %s completed successfully", args.operation.value)
+  logger.info("Starting %s operation", args.operation.value)
+  task_executor.execute_tasks(tasks)
+
   return 0
 
 
