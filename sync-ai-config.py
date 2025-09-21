@@ -133,6 +133,7 @@ class Config:
         rsync_opts=rsync_opts
     )
 
+
 ### File Mappings ###
 
 
@@ -352,6 +353,64 @@ class TaskBuilder:
     ext = orig_path.suffix
     return orig_path.parent / f"{name}{suffix}{ext}"
 
+
+class TaskExecutor:
+  """Executes rsync tasks"""
+
+  def __init__(self, config: Config):
+    self.config = config
+
+  def execute_tasks(self, tasks: List[RsyncTask]) -> bool:
+    """Execute all tasks"""
+    logger.info("Executing %d tasks", len(tasks))
+    return True
+
+  def _execute_one_task(self, task: RsyncTask) -> bool:
+    """Execute one task using rsync"""
+    # Build the rsync command
+
+    # Handle source and destination path
+    src = str(task.src) # convert Path to str
+    dest = str(task.dest)
+
+    if task.is_directory:
+      if not src.endswith('/'):
+        src += '/'
+      if not dest.endswith('/'):
+        dest += '/'
+
+    # Build the rsync command
+    cmd = ['rsync'] + self.config.rsync_opts + [src, dest]
+
+    # Log the execution
+    logger.info("Executing: %s, command: %s", task.description, f"`{' '.join(cmd)}`")
+
+    # Execute the command
+    try:
+      result = subprocess.run(
+          cmd,
+          capture_output=True,
+          text=True,
+          timeout=60,  # 1 minute timeout
+          check=False
+      )
+
+      # Handle results
+      if result.returncode == 0:
+        logger.info("Success: %s", task.description)
+        return True
+      else:
+        logger.error("Failed: %s - Return code: %d", task.description, result.returncode)
+        if result.stderr:
+          logger.error("Error output: %s", result.stderr.strip())
+        return False
+
+    except subprocess.TimeoutExpired:
+      logger.error("Timeout: %s", task.description)
+      return False
+    except Exception as e:
+      logger.error("Exception executing %s: %s", task.description, e)
+      return False
 
 ### Main ###
 
