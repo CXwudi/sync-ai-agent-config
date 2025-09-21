@@ -57,12 +57,16 @@ class FileMapping:
   is_directory: bool = False
   description: str = ""
 
+  def __iter__(self):
+    """Allow tuple unpacking: relative_path, windows_relative_path, keep_mode, is_directory, description = mapping"""
+    return iter((self.relative_path, self.windows_relative_path, self.keep_mode, self.is_directory, self.description))
+
 
 @dataclass
 class RsyncTask:
   """
   Represents a single rsync operation with source, destination, and metadata.
-  
+
   The source and destination can be either a local path in Path object or a remote SSH/SFTP path in str
   """
   src: str | Path
@@ -76,7 +80,7 @@ class Config:
   """Configuration for sync operations"""
   remote_user: str
   remote_host: str
-  remote_base_dir: str
+  remote_base_dir: Path
   windows_user: Optional[str]
   rsync_opts: List[str]
 
@@ -105,8 +109,8 @@ class Config:
     # Resolve values with precedence: CLI > env > defaults
     remote_user = args.remote_user or os.getenv('SYNC_USER')
     remote_host = args.remote_host or os.getenv('SYNC_HOST')
-    remote_base_dir = args.remote_dir or os.getenv(
-        'SYNC_DIR', '~/sync-files/ai-agents-related')
+    remote_base_dir = Path(args.remote_dir or os.getenv(
+        'SYNC_DIR', '~/sync-files/ai-agents-related'))
     windows_user = args.windows_user or os.getenv('WIN_USER')
 
     if not remote_user:
@@ -132,7 +136,7 @@ class Config:
 ### File Mappings ###
 
 
-ALL_FILE_MAPPINGS = [
+ALL_FILE_MAPPINGS: List[FileMapping] = [
     # Claude Code
     FileMapping(Path(".claude.json"), None, KeepMode.KEEP_BOTH,
                 description="Claude config"),
@@ -196,12 +200,90 @@ class TaskBuilder:
     return tasks
 
   def _windows_to_linux_then_remote(self, mapping: FileMapping) -> List[RsyncTask]:
-    return []
+    """Build tasks for pushing Windows files to Linux then to remote."""
+    relative_path = mapping.relative_path
+    windows_relative_path = mapping.windows_relative_path
+    description = mapping.description
+    is_directory = mapping.is_directory
+
+    tasks: List[RsyncTask] = []
+
+    linux_path = self.config.local_home / relative_path
+    if self.config.windows_user_dir is not None:
+      windows_specific_relative_path: Path = windows_relative_path or relative_path
+      tasks.append(RsyncTask(
+        src=self.config.windows_user_dir / windows_specific_relative_path,
+        dest=linux_path,
+        description=f"Windows to Linux: {description}",
+        is_directory=is_directory
+      ))
+
+    tasks.append(RsyncTask(
+      src=linux_path,
+      dest=self._build_remote_path(relative_path),
+      description=f"Linux to Remote: {description}",
+      is_directory=is_directory
+    ))
+    return tasks
+
 
   def _linux_to_windows_then_remote(self, mapping: FileMapping) -> List[RsyncTask]:
-    return []
+    """Build tasks for pushing Linux files to Windows then to remote."""
+    relative_path = mapping.relative_path
+    windows_relative_path = mapping.windows_relative_path
+    description = mapping.description
+    is_directory = mapping.is_directory
+
+    tasks: List[RsyncTask] = []
+
+    linux_path = self.config.local_home / relative_path
+    if self.config.windows_user_dir is not None:
+      windows_specific_relative_path: Path = windows_relative_path or relative_path
+      tasks.append(RsyncTask(
+        src=linux_path,
+        dest=self.config.windows_user_dir / windows_specific_relative_path,
+        description=f"Linux to Windows: {description}",
+        is_directory=is_directory
+      ))
+
+    tasks.append(RsyncTask(
+      src=linux_path,
+      dest=self._build_remote_path(relative_path),
+      description=f"Linux to Remote: {description}",
+      is_directory=is_directory
+    ))
+    return tasks
 
   def _both_to_remote_separately(self, mapping: FileMapping) -> List[RsyncTask]:
+    """Build tasks for pushing Linux and Windows files to remote separately."""
+    relative_path = mapping.relative_path
+    windows_relative_path = mapping.windows_relative_path
+    description = mapping.description
+    is_directory = mapping.is_directory
+
+    tasks: List[RsyncTask] = []
+    if self.config.windows_user_dir is not None:
+      windows_specific_relative_path: Path = windows_relative_path or relative_path
+      remote_relative_path_win = self._build_suffix_path(
+        relative_path, ".windows")
+      tasks.append(RsyncTask(
+        src=self.config.windows_user_dir / windows_specific_relative_path,
+        dest=self._build_remote_path(remote_relative_path_win),
+        description=f"Windows to Remote: {description}",
+        is_directory=is_directory
+      ))
+
+    remote_relative_path_linux = self._build_suffix_path(
+        relative_path, ".linux")
+    linux_path = self.config.local_home / relative_path
+    tasks.append(RsyncTask(
+      src=linux_path,
+      dest=self._build_remote_path(remote_relative_path_linux),
+      description=f"Linux to Remote: {description}",
+      is_directory=is_directory
+    ))
+
+
     return []
 
   def _remote_to_linux_then_windows(self, mapping: FileMapping) -> List[RsyncTask]:
@@ -210,6 +292,16 @@ class TaskBuilder:
   def _remote_separately_to_both(self, mapping: FileMapping) -> List[RsyncTask]:
     return []
 
+  def _build_remote_path(self, relative_path: Path) -> str:
+    """Build remote path string for rsync destination."""
+    return f"{self.config.remote_url}:~/{self.config.remote_base_dir / relative_path}"
+  
+  def _build_suffix_path(self, orig_path: Path, suffix: str) -> Path:
+    """Build path with suffix added before extension"""
+    name = orig_path.stem
+    ext = orig_path.suffix
+    return orig_path.parent / f"{name}{suffix}{ext}"
+    
 
 ### Main ###
 
