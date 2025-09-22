@@ -9,6 +9,8 @@ import logging
 import os
 import subprocess
 import sys
+import shlex
+import shutil
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -122,7 +124,7 @@ class Config:
     rsync_raw = getattr(args, 'rsync_opts', None)
     rsync_opts: List[str] = []
     if isinstance(rsync_raw, str):
-      rsync_opts = rsync_raw.split()
+      rsync_opts = shlex.split(rsync_raw)
     elif isinstance(rsync_raw, list):
       rsync_opts = [str(x) for x in cast(List[Any], rsync_raw)]
 
@@ -484,14 +486,24 @@ def main() -> int:
   numeric_level = getattr(logging, args.log_level.upper(), logging.INFO)
   logger.setLevel(numeric_level)
 
+  # Check for rsync
+  if not shutil.which('rsync'):
+    logger.critical("'rsync' command not found. Please install rsync and ensure it is in your PATH.")
+    return 1
+  
   # Create config
-  config = Config.from_args(args)
+  try:
+    config = Config.from_args(args)
+  except ValueError as e:
+    parser.error(str(e))
+    return 1
 
   logger.info("AI Config Sync")
   logger.debug("Configuration: %s", config)
 
   if not args.operation:
     parser.error("Operation (push/pull) is required")
+    return 1
 
   # Manual DI
   task_builder = TaskBuilder(config)
