@@ -163,8 +163,9 @@ ALL_FILE_MAPPINGS: List[FileMapping] = [
     FileMapping(Path(".vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"),
                 Path("AppData/Roaming/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"),
                 KeepMode.KEEP_BOTH, description="Cline MCP settings for VSCode"),
-    FileMapping(Path("Cline/Rules/"), Path("Documents/Cline/Rules/"),
-                KeepMode.PREFER_WINDOWS, is_directory=True, description="Cline rules"),
+    # The windows path is dependent on the user's Documents folder location, not necessarily "Documents"
+    # FileMapping(Path("Cline/Rules/"), Path("Documents/Cline/Rules/"),
+    #             KeepMode.PREFER_WINDOWS, is_directory=True, description="Cline rules"),
 ]
 # Default rsync options
 DEFAULT_RSYNC_OPTS = '-avz --update --delete --human-readable --mkpath'
@@ -391,11 +392,12 @@ class TaskExecutor:
         dest += '/'
 
     # Build the rsync command
-    cmd = ['rsync'] + self.config.rsync_opts + [src, dest]
+    cmd = ['rsync',
+           *self.config.rsync_opts, 
+           src, dest]
 
     # Log the execution
-    logger.info("Executing for %s:\n%s",
-                task.description, f"`{' '.join(cmd)}`")
+    logger.info("Executing for %s:\n%s", task.description, ' '.join(cmd))
 
     if self.config.dry_run:
       return True
@@ -478,7 +480,7 @@ def main() -> int:
   parser = create_argument_parser()
   args = parser.parse_args()
 
-  # Configure log level based on CLI argument (second basicConfig call)
+  # Configure log level based on CLI argument
   numeric_level = getattr(logging, args.log_level.upper(), logging.INFO)
   logger.setLevel(numeric_level)
 
