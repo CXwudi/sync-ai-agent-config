@@ -6,10 +6,14 @@ The script is designed to be run from a Linux environment (typically via WSL). T
 
 ## Key operations and logic:
 
+The program is a CLI utility with two main subcommands: `push` and `pull`. It includes options for specifying remote user, host, and Windows user
+
+Only when the Windows user is specified, the Windows-specific operations are performed.
+
 **push**:
 
 - Copies configuration files from the local machine to the remote server.
-- For `CLAUDE.md`, `GEMINI.md`, and Claude Code subagents at `~/.claude/agents`, the script first copies the versions from the Windows user's directory to the Linux home directory. This consolidated version is then pushed to the remote server. This ensures the Windows version is the source of truth.
+- For some configuration files, the script first copies the versions from the Windows user's directory to the Linux home directory. Then pushed to the remote server. This ensures the Windows version is the source of truth.
 - The script itself is also pushed to the remote server for easy access.
 
 ```sh
@@ -29,6 +33,20 @@ rsync -avz /mnt/c/Users/{WIN_USER}/.gemini/settings.json {USER}@{HOST}:~/sync-fi
 
 rsync -avz /mnt/c/Users/{WIN_USER}/.gemini/GEMINI.md ~/.gemini/GEMINI.md
 rsync -avz ~/.gemini/GEMINI.md {USER}@{HOST}:~/sync-files/ai-agents-related/.gemini/GEMINI.md
+
+# Codex
+rsync -avz ~/.codex/config.toml {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/config.linux.toml
+rsync -avz /mnt/c/Users/{WIN_USER}/.codex/config.toml {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/config.windows.toml
+
+rsync -avz /mnt/c/Users/{WIN_USER}/.codex/AGENTS.md ~/.codex/AGENTS.md
+rsync -avz ~/.codex/AGENTS.md {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/AGENTS.md
+
+# Cline
+rsync -avz ~/.vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json {USER}@{HOST}:~/sync-files/ai-agents-related/.vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.linux.json
+rsync -avz /mnt/c/Users/{WIN_USER}/AppData/Roaming/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json {USER}@{HOST}:~/sync-files/ai-agents-related/.vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.windows.json
+
+rsync -avz /mnt/c/Users/{WIN_USER}/Documents/Cline/Rules/ ~/Cline/Rules/
+rsync -avz ~/Cline/Rules/ {USER}@{HOST}:~/sync-files/ai-agents-related/Cline/Rules/
 ```
 
 **pull**:
@@ -52,8 +70,22 @@ rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.gemini/GEMINI.md ~/.gem
 
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.gemini/settings.windows.json /mnt/c/Users/{WIN_USER}/.gemini/settings.json
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.gemini/GEMINI.md /mnt/c/Users/{WIN_USER}/.gemini/GEMINI.md
+
+# Codex
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/config.linux.toml ~/.codex/config.toml
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/AGENTS.md ~/.codex/AGENTS.md
+
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/config.windows.toml /mnt/c/Users/{WIN_USER}/.codex/config.toml
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/AGENTS.md /mnt/c/Users/{WIN_USER}/.codex/AGENTS.md
+
+# Cline
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/Cline/Rules/ ~/Cline/Rules/
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.linux.json ~/.vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json
+
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/Cline/Rules/ /mnt/c/Users/{WIN_USER}/Documents/Cline/Rules/
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.windows.json /mnt/c/Users/{WIN_USER}/AppData/Roaming/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json
 ```
 
-The program is a CLI utility with two main subcommands: `push` and `pull`. It includes options for specifying remote user, host, and Windows user, as well as flags for dry runs, uses `rsync` with the `--update` flag (enabled by default) and verbose output.
+## Others
 
-Only when the Windows user is specified, the Windows-specific operations are performed.
+The CLI contains one option, `--rsync-opts`, to pass custom options to rsync. By default, it uses `-avz --update --delete --human-readable --mkpath`.

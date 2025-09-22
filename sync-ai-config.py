@@ -9,35 +9,82 @@ import logging
 import os
 import subprocess
 import sys
+import shlex
+import shutil
 from dataclasses import dataclass
-from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional, cast
 
-# ANSI color codes
+# Logging
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
 
-
-class Colors:
-  RED = '\033[0;31m'
-  GREEN = '\033[0;32m'
-  YELLOW = '\033[1;33m'
-  BLUE = '\033[0;34m'
-  NC = '\033[0m'  # No Color
+### Data Model ###
 
 
 class Operation(Enum):
+  """Available sync operations."""
   PUSH = "push"
   PULL = "pull"
+
+
+class KeepMode(Enum):
+  """Mode of keeping files between Linux and Windows"""
+  PREFER_WINDOWS = "prefer_windows"  # Windows→Linux→Remote
+  PREFER_LINUX = "prefer_linux"      # Linux→Windows→Remote
+  # Windows→Remote(.windows) + Linux→Remote(.linux)
+  KEEP_BOTH = "keep_both"
+
+
+@dataclass
+class FileMapping:
+  """
+  Windows, Linux, Remote, 3 way file mapping
+
+  For Windows and Linux, the paths are relative to the home directory.
+  For Remote, the paths are relative to a remote directory specified in the config.
+  """
+  relative_path: Path                      # e.g., ".claude/CLAUDE.md"
+  # Windows specific relative path
+  # e.g. Cline prompts folder in windows is "Documents/Cline/Rules/" where as in linux it is "Cline/Rules/"
+  windows_relative_path: Optional[Path]
+  keep_mode: KeepMode
+  is_directory: bool = False
+  description: str = ""
+
+  def __iter__(self):
+    """Allow tuple unpacking: relative_path, windows_relative_path, keep_mode, is_directory, description = mapping"""
+    return iter((self.relative_path, self.windows_relative_path, self.keep_mode, self.is_directory, self.description))
+
+
+@dataclass
+class RsyncTask:
+  """
+  Represents a single rsync operation with source, destination, and metadata.
+
+  The source and destination can be either a local path in Path object or a remote SSH/SFTP path in str
+  """
+  src: str | Path
+  dest: str | Path
+  description: str
+  is_directory: bool = False
 
 
 @dataclass
 class Config:
   """Configuration for sync operations"""
-  remote_user: Optional[str]
-  remote_host: Optional[str]
-  remote_base_dir: str
+  remote_user: str
+  remote_host: str
+  remote_base_dir: Path
   windows_user: Optional[str]
+  rsync_opts: List[str]
+  dry_run: bool
 
   @property
   def windows_user_dir(self) -> Optional[Path]:
@@ -61,594 +108,341 @@ class Config:
 
     Priority: Command line args > Environment variables > Defaults
     """
+    # Resolve values with precedence: CLI > env > defaults
+    remote_user = args.remote_user or os.getenv('SYNC_USER')
+    remote_host = args.remote_host or os.getenv('SYNC_HOST')
+    remote_base_dir = Path(args.remote_dir or os.getenv(
+        'SYNC_DIR', '~/sync-files/ai-agents-related'))
+    windows_user = args.windows_user or os.getenv('WIN_USER')
+
+    if not remote_user:
+      raise ValueError("Remote user must be configured")
+    if not remote_host:
+      raise ValueError("Remote host must be configured")
+
+    rsync_raw = getattr(args, 'rsync_opts', None)
+    rsync_opts: List[str] = []
+    if isinstance(rsync_raw, str):
+      rsync_opts = shlex.split(rsync_raw)
+    elif isinstance(rsync_raw, list):
+      rsync_opts = [str(x) for x in cast(List[Any], rsync_raw)]
+
     return cls(
-        remote_user=args.remote_user or os.getenv('SYNC_USER'),
-        remote_host=args.remote_host or os.getenv('SYNC_HOST'),
-        remote_base_dir=args.remote_dir or os.getenv(
-            'SYNC_DIR', '~/sync-files/ai-agents-related'),
-        windows_user=args.windows_user or os.getenv('WIN_USER')
+        remote_user=remote_user,
+        remote_host=remote_host,
+        remote_base_dir=remote_base_dir,
+        windows_user=windows_user,
+        rsync_opts=rsync_opts,
+        dry_run=args.dry_run
     )
 
 
-@dataclass
-class FileMapping:
-  """Represents a file or directory sync mapping"""
-  local_path: Path
-  remote_name: str
-  description: str
-  is_directory: bool = False
+### Constants ###
+# File Mappings
+ALL_FILE_MAPPINGS: List[FileMapping] = [
+    # Claude Code
+    FileMapping(Path(".claude.json"), None, KeepMode.KEEP_BOTH,
+                description="Claude config"),
+    FileMapping(Path(".claude/CLAUDE.md"), None,
+                KeepMode.PREFER_WINDOWS, description="Claude prompt file"),
+    FileMapping(Path(".claude/agents/"), None, KeepMode.PREFER_WINDOWS,
+                is_directory=True, description="Claude subagents"),
+
+    # Gemini CLI
+    FileMapping(Path(".gemini/settings.json"), None,
+                KeepMode.KEEP_BOTH, description="Gemini settings"),
+    FileMapping(Path(".gemini/GEMINI.md"), None,
+                KeepMode.PREFER_WINDOWS, description="Gemini prompt file"),
+
+    # Codex
+    FileMapping(Path(".codex/config.toml"), None,
+                KeepMode.KEEP_BOTH, description="Codex config"),
+    FileMapping(Path(".codex/AGENTS.md"), None,
+                KeepMode.PREFER_WINDOWS, description="Codex prompt file"),
+
+    # Cline
+    FileMapping(Path(".vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"),
+                Path("AppData/Roaming/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"),
+                KeepMode.KEEP_BOTH, description="Cline MCP settings for VSCode"),
+    # The windows path is dependent on the user's Documents folder location, not necessarily "Documents"
+    # FileMapping(Path("Cline/Rules/"), Path("Documents/Cline/Rules/"),
+    #             KeepMode.PREFER_WINDOWS, is_directory=True, description="Cline rules"),
+]
+# Default rsync options
+DEFAULT_RSYNC_OPTS = '-avz --update --delete --human-readable --mkpath'
+### Core Logic ###
 
 
-class ColoredFormatter(logging.Formatter):
-  """Custom formatter with colors"""
-
-  COLORS = {
-      'DEBUG': Colors.BLUE,
-      'INFO': Colors.BLUE,
-      'WARNING': Colors.YELLOW,
-      'ERROR': Colors.RED,
-      'CRITICAL': Colors.RED,
-  }
-
-  def format(self, record: logging.LogRecord):
-    log_color = self.COLORS.get(record.levelname, Colors.NC)
-
-    # Add symbols for different levels
-    symbols = {
-        'DEBUG': 'ℹ',
-        'INFO': 'ℹ',
-        'WARNING': '⚠',
-        'ERROR': '✗',
-        'CRITICAL': '✗',
-    }
-
-    symbol = symbols.get(record.levelname, '')
-    record.symbol = symbol
-
-    # Format the message with color
-    original_msg = record.msg
-    record.msg = f"{log_color}{symbol} {original_msg}{Colors.NC}"
-    result = super().format(record)
-    record.msg = original_msg  # Reset for file handler
-
-    return result
-
-
-class LoggingService:
-  """Handles all logging configuration and setup"""
-
-  def __init__(self, name: str, verbose: bool = False, quiet: bool = False):
-    self.logger = self._setup_logger(name, verbose, quiet)
-
-  def get_logger(self) -> logging.Logger:
-    """Get the configured logger instance"""
-    return self.logger
-
-  def _setup_logger(self, name: str, verbose: bool, quiet: bool) -> logging.Logger:
-    """Setup logging configuration"""
-    logger = logging.getLogger(name)
-
-    # Set log level based on verbosity/quiet
-    if quiet:
-      logger.setLevel(logging.WARNING)
-    elif verbose:
-      logger.setLevel(logging.DEBUG)
-    else:
-      logger.setLevel(logging.INFO)
-
-    # Console handler with colors
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(ColoredFormatter('%(message)s'))
-    logger.addHandler(console_handler)
-
-    # File handler
-    log_file = Path.home() / '.sync-ai-config.log'
-    file_handler = logging.FileHandler(log_file)
-    file_formatter = logging.Formatter(
-        '%(asctime)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
-    )
-    file_handler.setFormatter(file_formatter)
-    logger.addHandler(file_handler)
-
-    return logger
-
-
-class ProgressReporter:
-  """Handles user interface and progress reporting"""
-
-  def __init__(self, logger: logging.Logger):
-    self.logger = logger
-    self.success_count = 0
-    self.fail_count = 0
-
-  def track_success(self) -> None:
-    """Track successful operation"""
-    self.success_count += 1
-
-  def track_failure(self) -> None:
-    """Track failed operation"""
-    self.fail_count += 1
-
-  def print_summary(self, operation: str, dry_run: bool = False) -> None:
-    """Print operation summary"""
-    self.logger.info("═" * 50)
-    self.logger.info(
-        "%s Summary: %d succeeded, %d failed", operation, self.success_count, self.fail_count
-    )
-
-    if dry_run:
-      self.logger.info(
-          "Dry run completed - no files were actually transferred")
-
-  def show_config(self, config: Config) -> None:
-    """Show current configuration"""
-    self.logger.info("Current Configuration:")
-    self.logger.info("═" * 50)
-    self.logger.info("  Remote User: %s", config.remote_user)
-    self.logger.info("  Remote Host: %s", config.remote_host)
-    self.logger.info("  Remote Dir:  %s", config.remote_base_dir)
-    self.logger.info("  Windows User: %s",
-                     config.windows_user or "Not configured")
-    win_dir = config.windows_user_dir
-    self.logger.info("  Windows Dir: %s",
-                     win_dir if win_dir else "Not configured")
-    self.logger.info("═" * 50)
-
-  def list_mappings(self, mappings: List[FileMapping], config: Config) -> None:
-    """List all file mappings"""
-    self.logger.info("File Mappings:")
-    self.logger.info("═" * 50)
-
-    for mapping in mappings:
-      status = "✓" if mapping.local_path.exists() else "✗"
-      print(f"  [{status}] {mapping.local_path}")
-      print(f"      → {config.remote_base_dir}/{mapping.remote_name}")
-      print()
-
-  def reset_counters(self) -> None:
-    """Reset success and failure counters"""
-    self.success_count = 0
-    self.fail_count = 0
-
-
-class FileMappingProvider:
-  """Provides file mapping configurations based on system setup"""
+class TaskBuilder:
+  """Builds rsync tasks based on file mappings and keep mode"""
 
   def __init__(self, config: Config):
     self.config = config
 
-  def get_local_to_remote_mappings(self) -> List[FileMapping]:
-    """Create file mappings for sync operations"""
-    c = self.config
+  def build_push_tasks(self, mappings: List[FileMapping]) -> List[RsyncTask]:
+    """Build rsync tasks for pushing files from local to remote."""
+    tasks: List[RsyncTask] = []
+    logger.info("Building push tasks for %d mappings", len(mappings))
+    for mapping in mappings:
+      if mapping.keep_mode == KeepMode.PREFER_WINDOWS:
+        tasks.extend(self._windows_to_linux_then_remote(mapping))
+      elif mapping.keep_mode == KeepMode.PREFER_LINUX:
+        tasks.extend(self._linux_to_windows_then_remote(mapping))
+      elif mapping.keep_mode == KeepMode.KEEP_BOTH:
+        tasks.extend(self._both_to_remote_separately(mapping))
+    logger.info("Built %d push tasks", len(tasks))
+    return tasks
 
-    mappings = [
-        FileMapping(
-            c.local_home / '.claude.json',
-            '.claude.linux.json',
-            'Claude Linux config'
-        ),
-        FileMapping(
-            c.local_home / '.claude' / 'CLAUDE.md',
-            '.claude/CLAUDE.md',
-            'CLAUDE.md (Linux)'
-        ),
-        FileMapping(
-            c.local_home / '.claude' / 'agents',
-            '.claude/agents/',
-            'Claude agents directory (Linux)',
-            is_directory=True
-        ),
-        FileMapping(
-            c.local_home / '.gemini' / 'settings.json',
-            '.gemini/settings.linux.json',
-            'Gemini Linux settings'
-        ),
-        FileMapping(
-            c.local_home / '.gemini' / 'GEMINI.md',
-            '.gemini/GEMINI.md',
-            'GEMINI.md (Linux)'
-        ),
-    ]
+  def build_pull_tasks(self, mappings: List[FileMapping]) -> List[RsyncTask]:
+    """Build rsync tasks for pulling files from remote to local."""
+    tasks: List[RsyncTask] = []
+    logger.info("Building pull tasks for %d mappings", len(mappings))
+    for mapping in mappings:
+      if mapping.keep_mode == KeepMode.KEEP_BOTH:
+        tasks.extend(self._remote_separately_to_both(mapping))
+      elif mapping.keep_mode in (KeepMode.PREFER_WINDOWS, KeepMode.PREFER_LINUX):
+        # the pull logic is the same for both prefer modes
+        # since only one file pushed to remote (the prefer one)
+        tasks.extend(self._remote_to_linux_then_windows(mapping))
+    logger.info("Built %d pull tasks", len(tasks))
+    return tasks
 
-    # Add Windows mappings only if Windows username is configured
-    if c.windows_user and c.windows_user_dir:
-      win_dir = c.windows_user_dir
-      mappings.extend([
-          FileMapping(
-              win_dir / '.claude.json',
-              '.claude.windows.json',
-              'Claude Windows config'
-          ),
-          FileMapping(
-              win_dir / '.claude' / 'CLAUDE.md',
-              '.claude/CLAUDE.md',
-              'CLAUDE.md (Windows)'
-          ),
-          FileMapping(
-              win_dir / '.claude' / 'agents',
-              '.claude/agents/',
-              'Claude agents directory (Windows)',
-              is_directory=True
-          ),
-          FileMapping(
-              win_dir / '.gemini' / 'settings.json',
-              '.gemini/settings.windows.json',
-              'Gemini Windows settings'
-          ),
-          FileMapping(
-              win_dir / '.gemini' / 'GEMINI.md',
-              '.gemini/GEMINI.md',
-              'GEMINI.md (Windows)'
-          ),
-      ])
+  def _windows_to_linux_then_remote(self, mapping: FileMapping) -> List[RsyncTask]:
+    """Build tasks for pushing Windows files to Linux then to remote."""
+    relative_path = mapping.relative_path
+    windows_relative_path = mapping.windows_relative_path
+    description = mapping.description
+    is_directory = mapping.is_directory
 
-    # Add script itself
-    script_path = Path(__file__).resolve()
-    mappings.append(
-        FileMapping(
-            script_path,
-            script_path.name,
-            'Sync script'
-        )
-    )
+    tasks: List[RsyncTask] = []
 
-    return mappings
+    linux_path = self.config.local_home / relative_path
+    if self.config.windows_user_dir is not None:
+      windows_specific_relative_path: Path = windows_relative_path or relative_path
+      tasks.append(RsyncTask(
+          src=self.config.windows_user_dir / windows_specific_relative_path,
+          dest=linux_path,
+          description=f"Windows to Linux: {description}",
+          is_directory=is_directory
+      ))
 
-  def get_windows_to_linux_mappings(self) -> List[FileMapping]:
-    """Create Windows to Linux file mappings for local rsync operations"""
-    if not self.config.windows_user or not self.config.windows_user_dir:
-      return []
+    tasks.append(RsyncTask(
+        src=linux_path,
+        dest=self._build_remote_path(relative_path),
+        description=f"Linux to Remote: {description}",
+        is_directory=is_directory
+    ))
+    return tasks
 
-    win_dir = self.config.windows_user_dir
-    return [
-        FileMapping(
-            win_dir / '.claude' / 'CLAUDE.md',
-            str(self.config.local_home / '.claude' / 'CLAUDE.md'),
-            'CLAUDE.md from Windows to Linux'
-        ),
-        FileMapping(
-            win_dir / '.gemini' / 'GEMINI.md',
-            str(self.config.local_home / '.gemini' / 'GEMINI.md'),
-            'GEMINI.md from Windows to Linux'
-        ),
-        FileMapping(
-            win_dir / '.claude' / 'agents',
-            str(self.config.local_home / '.claude' / 'agents'),
-            'Claude agents from Windows to Linux',
-            is_directory=True
-        ),
-    ]
+  def _linux_to_windows_then_remote(self, mapping: FileMapping) -> List[RsyncTask]:
+    """Build tasks for pushing Linux files to Windows then to remote."""
+    relative_path = mapping.relative_path
+    windows_relative_path = mapping.windows_relative_path
+    description = mapping.description
+    is_directory = mapping.is_directory
+
+    tasks: List[RsyncTask] = []
+
+    linux_path = self.config.local_home / relative_path
+    if self.config.windows_user_dir is not None:
+      windows_specific_relative_path: Path = windows_relative_path or relative_path
+      tasks.append(RsyncTask(
+          src=linux_path,
+          dest=self.config.windows_user_dir / windows_specific_relative_path,
+          description=f"Linux to Windows: {description}",
+          is_directory=is_directory
+      ))
+
+    tasks.append(RsyncTask(
+        src=linux_path,
+        dest=self._build_remote_path(relative_path),
+        description=f"Linux to Remote: {description}",
+        is_directory=is_directory
+    ))
+    return tasks
+
+  def _both_to_remote_separately(self, mapping: FileMapping) -> List[RsyncTask]:
+    """Build tasks for pushing Linux and Windows files to remote separately."""
+    relative_path = mapping.relative_path
+    windows_relative_path = mapping.windows_relative_path
+    description = mapping.description
+    is_directory = mapping.is_directory
+
+    tasks: List[RsyncTask] = []
+    if self.config.windows_user_dir is not None:
+      windows_specific_relative_path: Path = windows_relative_path or relative_path
+      remote_relative_path_win = self._build_suffix_path(
+          relative_path, ".windows")
+      tasks.append(RsyncTask(
+          src=self.config.windows_user_dir / windows_specific_relative_path,
+          dest=self._build_remote_path(remote_relative_path_win),
+          description=f"Windows to Remote: {description}",
+          is_directory=is_directory
+      ))
+
+    remote_relative_path_linux = self._build_suffix_path(
+        relative_path, ".linux")
+    linux_path = self.config.local_home / relative_path
+    tasks.append(RsyncTask(
+        src=linux_path,
+        dest=self._build_remote_path(remote_relative_path_linux),
+        description=f"Linux to Remote: {description}",
+        is_directory=is_directory
+    ))
+
+    return tasks
+
+  def _remote_to_linux_then_windows(self, mapping: FileMapping) -> List[RsyncTask]:
+    """Build tasks for pulling Linux files from remote then to Windows."""
+    relative_path = mapping.relative_path
+    windows_relative_path = mapping.windows_relative_path
+    description = mapping.description
+    is_directory = mapping.is_directory
+
+    tasks: List[RsyncTask] = []
+
+    linux_path = self.config.local_home / relative_path
+    tasks.append(RsyncTask(
+        src=self._build_remote_path(relative_path),
+        dest=linux_path,
+        description=f"Remote to Linux: {description}",
+        is_directory=is_directory
+    ))
+
+    if self.config.windows_user_dir is not None:
+      windows_specific_relative_path: Path = windows_relative_path or relative_path
+      tasks.append(RsyncTask(
+          src=linux_path,
+          dest=self.config.windows_user_dir / windows_specific_relative_path,
+          description=f"Linux to Windows: {description}",
+          is_directory=is_directory
+      ))
+
+    return tasks
+
+  def _remote_separately_to_both(self, mapping: FileMapping) -> List[RsyncTask]:
+    """Build tasks for pulling Linux and Windows files from remote separately."""
+    relative_path = mapping.relative_path
+    windows_relative_path = mapping.windows_relative_path
+    description = mapping.description
+    is_directory = mapping.is_directory
+
+    tasks: List[RsyncTask] = []
+
+    linux_path = self.config.local_home / relative_path
+    remote_relative_path_linux = self._build_suffix_path(
+        relative_path, ".linux")
+    tasks.append(RsyncTask(
+        src=self._build_remote_path(remote_relative_path_linux),
+        dest=linux_path,
+        description=f"Remote to Linux: {description}",
+        is_directory=is_directory
+    ))
+
+    if self.config.windows_user_dir is not None:
+      windows_specific_relative_path: Path = windows_relative_path or relative_path
+      remote_relative_path_win = self._build_suffix_path(
+          relative_path, ".windows")
+      tasks.append(RsyncTask(
+          src=self._build_remote_path(remote_relative_path_win),
+          dest=self.config.windows_user_dir / windows_specific_relative_path,
+          description=f"Remote to Windows: {description}",
+          is_directory=is_directory
+      ))
+
+    return tasks
+
+  def _build_remote_path(self, relative_path: Path) -> str:
+    """Build remote path string for rsync destination."""
+    return f"{self.config.remote_url}:{self.config.remote_base_dir / relative_path}"
+
+  def _build_suffix_path(self, orig_path: Path, suffix: str) -> Path:
+    """Build path with suffix added before extension"""
+    name = orig_path.stem
+    ext = orig_path.suffix
+    return orig_path.parent / f"{name}{suffix}{ext}"
 
 
-class RemoteOperations:
-  """Handles all remote server interactions via SSH and rsync"""
+class TaskExecutor:
+  """Executes rsync tasks"""
 
-  def __init__(self, config: Config, rsync_opts: List[str], logger: logging.Logger):
+  def __init__(self, config: Config):
     self.config = config
-    self.rsync_opts = rsync_opts
-    self.logger = logger
 
-  def check_connectivity(self) -> bool:
-    """Check SSH connectivity to remote server"""
-    self.logger.info("Checking SSH connectivity to %s...",
-                     self.config.remote_url)
+  # TODO: return a dataclass for result
+  def execute_tasks(self, tasks: List[RsyncTask]) -> None:
+    """Execute all tasks"""
+    logger.info("Executing %d tasks", len(tasks))
+    for task in tasks:
+      self._execute_one_task(task)
+    if self.config.dry_run:
+      logger.info("Dry run complete")
 
+  def _execute_one_task(self, task: RsyncTask) -> bool:
+    """Execute one task using rsync"""
+    # Build the rsync command
+
+    # Handle source and destination path
+    src = str(task.src)  # convert Path to str
+    dest = str(task.dest)
+
+    if task.is_directory:
+      if not src.endswith('/'):
+        src += '/'
+      if not dest.endswith('/'):
+        dest += '/'
+
+    # Build the rsync command
+    cmd = ['rsync',
+           *self.config.rsync_opts, 
+           src, dest]
+
+    # Log the execution
+    logger.info("Executing for %s:\n%s", task.description, ' '.join(cmd))
+
+    if self.config.dry_run:
+      return True
+
+    # Execute the command
     try:
       result = subprocess.run(
-          ['ssh', '-o', 'ConnectTimeout=5', '-o', 'BatchMode=yes',
-           self.config.remote_url, 'echo', 'Connected'],
+          cmd,
           capture_output=True,
           text=True,
-          timeout=10
+          timeout=60,  # 1 minute timeout
+          check=False
       )
 
+      # Handle results
       if result.returncode == 0:
-        self.logger.info("%s✓ SSH connection successful%s",
-                         Colors.GREEN, Colors.NC)
+        logger.info("Success: %s", task.description)
         return True
       else:
-        self.logger.error("Cannot connect to %s", self.config.remote_url)
+        logger.error("Failed: %s - Return code: %d",
+                     task.description, result.returncode)
+        if result.stderr:
+          logger.error("Error output: %s", result.stderr.strip())
         return False
 
     except subprocess.TimeoutExpired:
-      self.logger.error("Connection timeout to %s", self.config.remote_url)
+      logger.error("Timeout: %s", task.description)
       return False
     except Exception as e:
-      self.logger.error("Connection error: %s", e)
+      logger.error("Exception executing %s: %s", task.description, e)
       return False
 
-  def ensure_remote_directory(self, path: str) -> bool:
-    """Setup remote directory structure"""
-    self.logger.info("Setting up remote directory structure...")
-
-    try:
-      subprocess.run(
-          ['ssh', self.config.remote_url, f'mkdir -p {path}'],
-          check=True,
-          capture_output=True
-      )
-      return True
-    except subprocess.CalledProcessError as e:
-      self.logger.warning("Failed to create remote directory: %s", e)
-      return False
-
-  def sync_file(self, source: str, dest: str, description: str, is_directory: bool = False) -> bool:
-    """Execute rsync for a single file or directory"""
-    self.logger.info("Syncing %s", description)
-    self.logger.debug("  From: %s", source)
-    self.logger.debug("  To: %s", dest)
-
-    try:
-      cmd = ['rsync'] + self.rsync_opts.copy()
-
-      # Add recursive flag for directories
-      if is_directory:
-        if '-r' not in cmd:
-          cmd.append('-r')
-        # Ensure source ends with / for directory sync
-        if not source.endswith('/'):
-          source += '/'
-
-      cmd.extend([source, dest])
-      result = subprocess.run(cmd, capture_output=True, text=True)
-
-      if '--verbose' in self.rsync_opts and result.stdout:
-        print(result.stdout)
-
-      if result.returncode == 0:
-        self.logger.info("%s✓ Synced %s%s", Colors.GREEN,
-                         description, Colors.NC)
-        return True
-      else:
-        self.logger.error("Failed to sync %s: %s", description, result.stderr)
-        return False
-
-    except Exception as e:
-      self.logger.error("Error syncing %s: %s", description, e)
-      return False
-
-
-class LocalFileOperations:
-  """Handles local file system operations"""
-
-  def __init__(self, logger: logging.Logger):
-    self.logger = logger
-
-  def ensure_directory(self, file_path: Path) -> None:
-    """Ensure local directory exists"""
-    dir_path = file_path.parent
-    if not dir_path.exists():
-      self.logger.debug("Creating directory: %s", dir_path)
-      dir_path.mkdir(parents=True, exist_ok=True)
-
-  def file_exists(self, path: Path) -> bool:
-    """Check if file exists"""
-    return path.exists()
-
-
-class BackupManager:
-  """Manages backup operations for both local and remote files"""
-
-  def __init__(self, config: Config, remote_ops: RemoteOperations,
-               local_ops: LocalFileOperations, logger: logging.Logger):
-    self.config = config
-    self.remote_ops = remote_ops
-    self.local_ops = local_ops
-    self.logger = logger
-
-  def create_remote_backup(self) -> bool:
-    """Create backup on remote server"""
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    backup_dir = f"{self.config.remote_base_dir}/backups/{timestamp}"
-    self.logger.info("Creating remote backup at %s...", backup_dir)
-
-    try:
-      subprocess.run(
-          ['ssh', self.config.remote_url,
-           f"mkdir -p {backup_dir} && "
-           f"cp {self.config.remote_base_dir}/*.json "
-           f"{self.config.remote_base_dir}/*.md "
-           f"{self.config.remote_base_dir}/*.py "
-           f"{self.config.remote_base_dir}/*.sh "
-           f"{backup_dir}/ 2>/dev/null || true"],
-          shell=False,
-          capture_output=True
-      )
-      self.logger.info("%s✓ Remote backup created%s", Colors.GREEN, Colors.NC)
-      return True
-    except Exception as e:
-      self.logger.warning("Backup failed: %s", e)
-      return False
-
-  def create_local_backup(self, mappings: List[FileMapping]) -> bool:
-    """Create backup of local files"""
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    backup_dir = self.config.local_home / '.ai-config-backups' / timestamp
-    backup_dir.mkdir(parents=True, exist_ok=True)
-
-    self.logger.info("Creating local backup at %s...", backup_dir)
-
-    success = True
-    for mapping in mappings:
-      if mapping.local_path.exists():
-        try:
-          dest_path = backup_dir / mapping.local_path.name
-          import shutil
-          shutil.copy2(mapping.local_path, dest_path)
-        except Exception as e:
-          self.logger.warning("Failed to backup %s: %s", mapping.local_path, e)
-          success = False
-
-    if success:
-      self.logger.info("%s✓ Local backup created%s", Colors.GREEN, Colors.NC)
-    return success
-
-
-class PushOperation:
-  """Handles push operation (local → remote)"""
-
-  def __init__(self, config: Config, logger: logging.Logger, progress_reporter: ProgressReporter,
-               file_mapping_provider: FileMappingProvider, remote_ops: RemoteOperations,
-               local_ops: LocalFileOperations, dry_run: bool = False):
-    self.config = config
-    self.logger = logger
-    self.progress_reporter = progress_reporter
-    self.file_mapping_provider = file_mapping_provider
-    self.remote_ops = remote_ops
-    self.local_ops = local_ops
-    self.dry_run = dry_run
-
-  def filter_mappings(self, mappings: List[FileMapping]) -> List[FileMapping]:
-    """Filter out Windows files that should be synced from Linux copies"""
-    if not self.config.windows_user_dir:
-      return mappings
-
-    # Files to skip because they're synced from Linux copies
-    skip_paths = {
-        self.config.windows_user_dir / '.claude' / 'CLAUDE.md',
-        self.config.windows_user_dir / '.gemini' / 'GEMINI.md',
-        self.config.windows_user_dir / '.claude' / 'agents'
-    }
-
-    return [mapping for mapping in mappings if mapping.local_path not in skip_paths]
-
-  def get_all_push_mappings(self) -> List[FileMapping]:
-    """Get combined Windows-to-Linux and filtered local-to-remote mappings for push operation"""
-    all_mappings: List[FileMapping] = []
-
-    # Add Windows-to-Linux mappings with operation_type
-    windows_to_linux_mappings = self.file_mapping_provider.get_windows_to_linux_mappings()
-    for mapping in windows_to_linux_mappings:
-      mapping.operation_type = "windows_to_linux"
-      all_mappings.append(mapping)
-
-    # Add filtered local-to-remote mappings with operation_type
-    local_to_remote_mappings = self.file_mapping_provider.get_local_to_remote_mappings()
-    filtered_mappings = self.filter_mappings(local_to_remote_mappings)
-    for mapping in filtered_mappings:
-      mapping.operation_type = "local_to_remote"
-      all_mappings.append(mapping)
-
-    return all_mappings
-
-  def execute(self) -> bool:
-    """Execute push operation"""
-    self.logger.info("Starting PUSH operation (local → remote)...")
-    self.progress_reporter.reset_counters()
-
-    # Get all push mappings (Windows-to-Linux and filtered local-to-remote)
-    all_mappings = self.get_all_push_mappings()
-
-    # Process all mappings in single unified loop
-    for mapping in all_mappings:
-      if not self.local_ops.file_exists(mapping.local_path):
-        if mapping.operation_type == "windows_to_linux":
-          self.logger.warning("Windows file not found: %s", mapping.local_path)
-        else:
-          self.logger.warning("File not found: %s", mapping.local_path)
-        self.progress_reporter.track_failure()
-        continue
-
-      # Determine destination path based on operation type
-      dest_path = mapping.remote_name if mapping.operation_type == "windows_to_linux" else f"{self.config.remote_url}:{self.config.remote_base_dir}/{mapping.remote_name}"
-
-      # Perform sync operation
-      if self.remote_ops.sync_file(str(mapping.local_path), dest_path, mapping.description, mapping.is_directory):
-        self.progress_reporter.track_success()
-      else:
-        self.progress_reporter.track_failure()
-
-    self.progress_reporter.print_summary("Push", self.dry_run)
-    return self.progress_reporter.fail_count == 0
-
-
-class PullOperation:
-  """Handles pull operation (remote → local)"""
-
-  def __init__(self, config: Config, logger: logging.Logger, progress_reporter: ProgressReporter,
-               file_mapping_provider: FileMappingProvider, remote_ops: RemoteOperations,
-               local_ops: LocalFileOperations, dry_run: bool = False):
-    self.config = config
-    self.logger = logger
-    self.progress_reporter = progress_reporter
-    self.file_mapping_provider = file_mapping_provider
-    self.remote_ops = remote_ops
-    self.local_ops = local_ops
-    self.dry_run = dry_run
-
-  def get_pull_mappings(self) -> List[FileMapping]:
-    """Get filtered FileMapping list for pull operations"""
-    all_mappings = self.file_mapping_provider.get_local_to_remote_mappings()
-
-    # Filter out script file (not pulled from remote)
-    pull_mappings = [
-        mapping for mapping in all_mappings
-        if mapping.description != 'Sync script'
-    ]
-
-    return pull_mappings
-
-  def execute(self) -> bool:
-    """Execute pull operation"""
-    self.logger.info("Starting PULL operation (remote → local)...")
-    self.progress_reporter.reset_counters()
-
-    pull_mappings = self.get_pull_mappings()
-
-    for mapping in pull_mappings:
-      if mapping.is_directory:
-        # For directories, ensure the parent directory exists
-        self.local_ops.ensure_directory(
-            mapping.local_path.parent / mapping.local_path.name)
-      else:
-        # For files, ensure the directory exists
-        self.local_ops.ensure_directory(mapping.local_path)
-
-      remote_file = f"{self.config.remote_base_dir}/{mapping.remote_name}"
-      remote_path = f"{self.config.remote_url}:{remote_file}"
-
-      if self.remote_ops.sync_file(remote_path, str(mapping.local_path), mapping.description, mapping.is_directory):
-        self.progress_reporter.track_success()
-      else:
-        self.progress_reporter.track_failure()
-
-    self.progress_reporter.print_summary("Pull", self.dry_run)
-    return self.progress_reporter.fail_count == 0
+### Main ###
 
 
 def create_argument_parser() -> argparse.ArgumentParser:
-  """Create and configure the argument parser"""
+  """Create and configure the argument parser, TODO: need modification from newest design doc"""
   parser = argparse.ArgumentParser(
-      description='Sync AI agent configuration files between local machine and remote server',
-      formatter_class=argparse.RawDescriptionHelpFormatter,
-      epilog="""
-EXAMPLES:
-  %(prog)s push                       # Push configs to remote
-  %(prog)s pull                       # Pull configs from remote
-  %(prog)s -n push                    # Dry run push
-  %(prog)s -vb pull                   # Verbose pull with backup
-  %(prog)s --list                     # List file mappings
-  %(prog)s --config                   # Show current configuration
-
-  # With custom settings (override env vars)
-  %(prog)s --remote-user username --remote-host server.example.com push
-  %(prog)s --windows-user myuser pull
-  %(prog)s -u username -H 192.168.1.100 -d ~/configs push
-
-CONFIGURATION PRIORITY:
-  Command line arguments > Environment variables > Required
-
-ENVIRONMENT VARIABLES:
-  SYNC_USER    Remote username (required if not specified via --remote-user)
-  SYNC_HOST    Remote host (required if not specified via --remote-host)
-  SYNC_DIR     Remote directory (default: ~/sync-files/ai-agents-related)
-  WIN_USER     Windows username (optional - enables Windows file operations)
-    """
+      description='Sync AI agent configuration files between local machine and remote server'
   )
 
   parser.add_argument('operation', nargs='?',
-                      choices=['push', 'pull'],
+                      type=Operation,
+                      choices=list(Operation),
                       help='Operation to perform')
 
 # Remote configuration
@@ -663,151 +457,70 @@ ENVIRONMENT VARIABLES:
   # Local configuration
   local_group = parser.add_argument_group('local configuration')
   local_group.add_argument('-w', '--windows-user',
-                           help='Windows username (optional - enables Windows file sync)')
+                           help='Windows username (overrides WIN_USER, optional - enables Windows file sync)')
 
   # Operation options
   op_group = parser.add_argument_group('operation options')
-  op_group.add_argument('-v', '--verbose', action='store_true',
-                        help='Enable verbose output')
-  op_group.add_argument('-q', '--quiet', action='store_true',
-                        help='Suppress non-error output')
-  op_group.add_argument('-n', '--dry-run', action='store_true',
-                        help='Perform a dry run (show what would be synced)')
-  op_group.add_argument('-b', '--backup', action='store_true',
-                        help='Create timestamped backup before syncing')
+  op_group.add_argument('--rsync-opts', default=DEFAULT_RSYNC_OPTS,
+                        help=f'Options to pass to rsync (default: "{DEFAULT_RSYNC_OPTS}")')
+  op_group.add_argument('--log-level', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'], default='INFO',
+                        help='Set logging level (default: INFO)')
+  op_group.add_argument('--dry-run', action='store_true',
+                        help='Dry run: List all rsync commands, not executing')
 
   # Info options
   info_group = parser.add_argument_group('information options')
-  info_group.add_argument('-c', '--check', action='store_true',
-                          help='Only check connectivity')
-  info_group.add_argument('-l', '--list', action='store_true',
-                          help='List all file mappings')
-  info_group.add_argument('--config', action='store_true',
-                          help='Show current configuration')
   info_group.add_argument('--version', action='version',
-                          version='%(prog)s 2.5.0')
+                          version='%(prog)s 3.0.0')
 
   return parser
 
 
-def main():
+def main() -> int:
+  """Main function"""
   parser = create_argument_parser()
   args = parser.parse_args()
 
-  # Validate quiet and verbose are not both set
-  if args.quiet and args.verbose:
-    parser.error("--quiet and --verbose are mutually exclusive")
+  # Configure log level based on CLI argument
+  numeric_level = getattr(logging, args.log_level.upper(), logging.INFO)
+  logger.setLevel(numeric_level)
 
-  # Initialize configuration from args (with env var fallback)
-  config = Config.from_args(args)
-
-  # Validate operation is provided (unless info-only operations)
-  if not (args.list or args.config or args.check):
-    if not args.operation:
-      parser.error("Operation (push/pull) is required")
-
-  # Validate required configuration (skip for info-only operations)
-  if not (args.list or args.config):
-    missing_params: List[str] = []
-    if not config.remote_user:
-      missing_params.append(
-          "remote username (use --remote-user or set SYNC_USER)")
-    if not config.remote_host:
-      missing_params.append("remote host (use --remote-host or set SYNC_HOST)")
-
-    if missing_params:
-      parser.error(
-          f"Missing required configuration: {', '.join(missing_params)}")
-
-  # Initialize services
-  logging_service = LoggingService(
-      'sync-ai-config', verbose=args.verbose, quiet=args.quiet)
-  logger = logging_service.get_logger()
-  progress_reporter = ProgressReporter(logger)
-  file_mapping_provider = FileMappingProvider(config)
-
-  # Rsync options
-  rsync_opts = ['-az', '--update', '--stats', '--human-readable', '--mkpath']
-  if args.verbose:
-    rsync_opts.extend(['-v', '--progress'])
-  if args.quiet:
-    rsync_opts.append('-q')
-  if args.dry_run:
-    rsync_opts.append('--dry-run')
-
-  remote_ops = RemoteOperations(config, rsync_opts, logger)
-  local_ops = LocalFileOperations(logger)
-  backup_manager = BackupManager(config, remote_ops, local_ops, logger)
-
-  # Initialize operation classes
-  push_operation = PushOperation(config, logger, progress_reporter, file_mapping_provider,
-                                 remote_ops, local_ops, args.dry_run)
-  pull_operation = PullOperation(config, logger, progress_reporter, file_mapping_provider,
-                                 remote_ops, local_ops, args.dry_run)
-
-  try:
-    # Show config if requested
-    if args.config:
-      progress_reporter.show_config(config)
-      return 0
-
-    # List mappings if requested
-    if args.list:
-      mappings = file_mapping_provider.get_local_to_remote_mappings()
-      progress_reporter.list_mappings(mappings, config)
-      return 0
-
-    # Print header
-    if not args.quiet:
-      logger.info("═" * 50)
-      logger.info("AI Config Sync Started")
-      logger.info("Operation: %s", args.operation.upper())
-      logger.info("Remote: %s", config.remote_url)
-      logger.info("Remote Dir: %s", config.remote_base_dir)
-      logger.info("Windows User: %s", config.windows_user)
-
-    # Check connectivity
-    if not remote_ops.check_connectivity():
-      return 1
-
-    # Check only mode
-    if args.check:
-      logger.info("Connectivity check passed.")
-      return 0
-
-    # Create backup if requested
-    if args.backup and not args.dry_run:
-      if args.operation == 'push':
-        backup_manager.create_remote_backup()
-      else:
-        mappings = file_mapping_provider.get_local_to_remote_mappings()
-        backup_manager.create_local_backup(mappings)
-
-    # Setup remote dirs for push
-    if args.operation == 'push':
-      remote_ops.ensure_remote_directory(config.remote_base_dir)
-
-    # Perform operation
-    if args.operation == 'push':
-      success = push_operation.execute()
-    else:
-      success = pull_operation.execute()
-
-    if not args.quiet:
-      logger.info("AI Config Sync Completed")
-      logger.info("═" * 50)
-
-    return 0 if success else 1
-
-  except KeyboardInterrupt:
-    logger.error("\nOperation cancelled by user")
-    return 130
-  except Exception as e:
-    logger.error("Unexpected error: %s", e)
-    if args.verbose:
-      import traceback
-      traceback.print_exc()
+  # Check for rsync
+  if not shutil.which('rsync'):
+    logger.critical("'rsync' command not found. Please install rsync and ensure it is in your PATH.")
     return 1
+  
+  # Create config
+  try:
+    config = Config.from_args(args)
+  except ValueError as e:
+    parser.error(str(e))
+    return 1
+
+  logger.info("AI Config Sync")
+  logger.debug("Configuration: %s", config)
+
+  if not args.operation:
+    parser.error("Operation (push/pull) is required")
+    return 1
+
+  # Manual DI
+  task_builder = TaskBuilder(config)
+  task_executor = TaskExecutor(config)
+
+  # Build tasks
+  logger.info("Building tasks for %s operation", args.operation.value)
+  tasks: List[RsyncTask] = (
+      task_builder.build_push_tasks(ALL_FILE_MAPPINGS) if args.operation == Operation.PUSH
+      else task_builder.build_pull_tasks(ALL_FILE_MAPPINGS)
+  )
+  logger.debug("Built Tasks: %s", tasks)
+
+  # Execute tasks
+  logger.info("Starting %s operation", args.operation.value)
+  task_executor.execute_tasks(tasks)
+
+  return 0
 
 
 if __name__ == '__main__':
