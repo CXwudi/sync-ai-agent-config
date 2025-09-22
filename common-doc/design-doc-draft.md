@@ -88,4 +88,4 @@ rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.vscode-server/data/User
 
 ## Others
 
-The CLI contains one option, just `--rsync-opts`, to pass options to rsync, other than the src and dest. By default to `-avz --update --delete --human-readable --mkpath`.
+The CLI contains one option, `--rsync-opts`, to pass custom options to rsync. By default, it uses `-avz --update --delete --human-readable --mkpath`.
