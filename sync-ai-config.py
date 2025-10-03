@@ -143,6 +143,8 @@ ALL_FILE_MAPPINGS: List[FileMapping] = [
     # Claude Code
     FileMapping(Path(".claude.json"), None, KeepMode.KEEP_BOTH,
                 description="Claude config"),
+    FileMapping(Path(".claude/settings.json"), None,
+                KeepMode.PREFER_WINDOWS, description="Claude settings file"),
     FileMapping(Path(".claude/CLAUDE.md"), None,
                 KeepMode.PREFER_WINDOWS, description="Claude prompt file"),
     FileMapping(Path(".claude/agents/"), None, KeepMode.PREFER_WINDOWS,
