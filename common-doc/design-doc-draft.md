@@ -21,6 +21,9 @@ Only when the Windows user is specified, the Windows-specific operations are per
 rsync -avz ~/.claude.json {USER}@{HOST}:~/sync-files/ai-agents-related/.claude.linux.json
 rsync -avz /mnt/c/Users/{WIN_USER}/.claude.json {USER}@{HOST}:~/sync-files/ai-agents-related/.claude.windows.json
 
+rsync -avz /mnt/c/Users/{WIN_USER}/.claude/settings.json ~/.claude/settings.json
+rsync -avz ~/.claude/settings.json {USER}@{HOST}:~/sync-files/ai-agents-related/.claude/settings.json
+
 rsync -avz /mnt/c/Users/{WIN_USER}/.claude/CLAUDE.md ~/.claude/CLAUDE.md
 rsync -avz ~/.claude/CLAUDE.md {USER}@{HOST}:~/sync-files/ai-agents-related/.claude/CLAUDE.md
 
@@ -59,10 +62,12 @@ rsync -avz ~/Cline/Rules/ {USER}@{HOST}:~/sync-files/ai-agents-related/Cline/Rul
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.claude.linux.json ~/.claude.json
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.claude/CLAUDE.md ~/.claude/CLAUDE.md
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.claude/agents/ ~/.claude/agents/
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.claude/settings.json ~/.claude/settings.json
 
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.claude.windows.json /mnt/c/Users/{WIN_USER}/.claude.json
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.claude/CLAUDE.md /mnt/c/Users/{WIN_USER}/.claude/CLAUDE.md
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.claude/agents/ /mnt/c/Users/{WIN_USER}/.claude/agents/
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.claude/settings.json /mnt/c/Users/{WIN_USER}/.claude/settings.json
 
 # Gemini CLI
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.gemini/settings.linux.json ~/.gemini/settings.json
