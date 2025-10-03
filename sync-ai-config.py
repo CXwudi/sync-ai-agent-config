@@ -102,40 +102,6 @@ class Config:
       raise ValueError("Remote user and host must be configured")
     return f"{self.remote_user}@{self.remote_host}"
 
-  @classmethod
-  def from_args(cls, args: argparse.Namespace) -> 'Config':
-    """Create config from command line arguments with env var fallback
-
-    Priority: Command line args > Environment variables > Defaults
-    """
-    # Resolve values with precedence: CLI > env > defaults
-    remote_user = args.remote_user or os.getenv('SYNC_USER')
-    remote_host = args.remote_host or os.getenv('SYNC_HOST')
-    remote_base_dir = Path(args.remote_dir or os.getenv(
-        'SYNC_DIR', '~/sync-files/ai-agents-related'))
-    windows_user = args.windows_user or os.getenv('WIN_USER')
-
-    if not remote_user:
-      raise ValueError("Remote user must be configured")
-    if not remote_host:
-      raise ValueError("Remote host must be configured")
-
-    rsync_raw = getattr(args, 'rsync_opts', None)
-    rsync_opts: List[str] = []
-    if isinstance(rsync_raw, str):
-      rsync_opts = shlex.split(rsync_raw)
-    elif isinstance(rsync_raw, list):
-      rsync_opts = [str(x) for x in cast(List[Any], rsync_raw)]
-
-    return cls(
-        remote_user=remote_user,
-        remote_host=remote_host,
-        remote_base_dir=remote_base_dir,
-        windows_user=windows_user,
-        rsync_opts=rsync_opts,
-        dry_run=args.dry_run
-    )
-
 
 ### Constants ###
 # File Mappings
@@ -396,7 +362,7 @@ class TaskExecutor:
 
     # Build the rsync command
     cmd = ['rsync',
-           *self.config.rsync_opts, 
+           *self.config.rsync_opts,
            src, dest]
 
     # Log the execution
@@ -478,6 +444,36 @@ def create_argument_parser() -> argparse.ArgumentParser:
   return parser
 
 
+def config_from_args(args: argparse.Namespace) -> Config:
+  """Build a Config from CLI arguments with env var fallbacks."""
+  remote_user = args.remote_user or os.getenv('SYNC_USER')
+  remote_host = args.remote_host or os.getenv('SYNC_HOST')
+  remote_base_dir = Path(args.remote_dir or os.getenv(
+      'SYNC_DIR', '~/sync-files/ai-agents-related'))
+  windows_user = args.windows_user or os.getenv('WIN_USER')
+
+  if not remote_user:
+    raise ValueError("Remote user must be configured")
+  if not remote_host:
+    raise ValueError("Remote host must be configured")
+
+  rsync_raw: Any = getattr(args, 'rsync_opts', None)
+  rsync_opts: List[str] = []
+  if isinstance(rsync_raw, str):
+    rsync_opts = shlex.split(rsync_raw)
+  elif isinstance(rsync_raw, list):
+    rsync_opts = [str(item) for item in cast(List[Any], rsync_raw)]
+
+  return Config(
+      remote_user=remote_user,
+      remote_host=remote_host,
+      remote_base_dir=remote_base_dir,
+      windows_user=windows_user,
+      rsync_opts=rsync_opts,
+      dry_run=args.dry_run
+  )
+
+
 def main() -> int:
   """Main function"""
   parser = create_argument_parser()
@@ -491,10 +487,10 @@ def main() -> int:
   if not shutil.which('rsync'):
     logger.critical("'rsync' command not found. Please install rsync and ensure it is in your PATH.")
     return 1
-  
+
   # Create config
   try:
-    config = Config.from_args(args)
+    config = config_from_args(args)
   except ValueError as e:
     parser.error(str(e))
     return 1
