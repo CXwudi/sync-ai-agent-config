@@ -110,23 +110,23 @@ ALL_FILE_MAPPINGS: List[FileMapping] = [
     FileMapping(Path(".claude.json"), None, KeepMode.KEEP_BOTH,
                 description="Claude config"),
     FileMapping(Path(".claude/settings.json"), None,
-                KeepMode.PREFER_WINDOWS, description="Claude settings file"),
+                KeepMode.PREFER_LINUX, description="Claude settings file"),
     FileMapping(Path(".claude/CLAUDE.md"), None,
-                KeepMode.PREFER_WINDOWS, description="Claude prompt file"),
-    FileMapping(Path(".claude/agents/"), None, KeepMode.PREFER_WINDOWS,
+                KeepMode.PREFER_LINUX, description="Claude prompt file"),
+    FileMapping(Path(".claude/agents/"), None, KeepMode.PREFER_LINUX,
                 is_directory=True, description="Claude subagents"),
 
     # Gemini CLI
     FileMapping(Path(".gemini/settings.json"), None,
                 KeepMode.KEEP_BOTH, description="Gemini settings"),
     FileMapping(Path(".gemini/GEMINI.md"), None,
-                KeepMode.PREFER_WINDOWS, description="Gemini prompt file"),
+                KeepMode.PREFER_LINUX, description="Gemini prompt file"),
 
     # Codex
     FileMapping(Path(".codex/config.toml"), None,
                 KeepMode.KEEP_BOTH, description="Codex config"),
     FileMapping(Path(".codex/AGENTS.md"), None,
-                KeepMode.PREFER_WINDOWS, description="Codex prompt file"),
+                KeepMode.PREFER_LINUX, description="Codex prompt file"),
 
     # Cline
     FileMapping(Path(".vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"),
@@ -134,7 +134,7 @@ ALL_FILE_MAPPINGS: List[FileMapping] = [
                 KeepMode.KEEP_BOTH, description="Cline MCP settings for VSCode"),
     # The windows path is dependent on the user's Documents folder location, not necessarily "Documents"
     # FileMapping(Path("Cline/Rules/"), Path("Documents/Cline/Rules/"),
-    #             KeepMode.PREFER_WINDOWS, is_directory=True, description="Cline rules"),
+    #             KeepMode.PREFER_LINUX, is_directory=True, description="Cline rules"),
 ]
 # Default rsync options
 DEFAULT_RSYNC_OPTS = '-avz --update --delete --human-readable --mkpath'
