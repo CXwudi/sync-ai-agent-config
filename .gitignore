@@ -210,8 +210,8 @@ logs/
 config/secrets.yml
 secrets/
 
-# Claude Code configuration (tracked in repo)
-# .claude/ - explicitly tracked for team consistency
+# Claude Code configuration
+.claude/
 
 # My own
 agent-rsp/
