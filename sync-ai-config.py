@@ -14,7 +14,7 @@ import shutil
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, List, Optional, cast
+from typing import Any, Iterator, List, Optional, cast
 
 # Logging
 logging.basicConfig(
@@ -54,13 +54,15 @@ class FileMapping:
   # Windows specific relative path
   # e.g. Cline prompts folder in windows is "Documents/Cline/Rules/" where as in linux it is "Cline/Rules/"
   windows_relative_path: Optional[Path]
+  # Custom remote path (relative to remote_base_dir). If not provided, uses relative_path
+  remote_relative_path: Optional[Path]
   keep_mode: KeepMode
   is_directory: bool = False
   description: str = ""
 
-  def __iter__(self):
-    """Allow tuple unpacking: relative_path, windows_relative_path, keep_mode, is_directory, description = mapping"""
-    return iter((self.relative_path, self.windows_relative_path, self.keep_mode, self.is_directory, self.description))
+  def __iter__(self) -> Iterator[Any]:
+    """Allow tuple unpacking: relative_path, windows_relative_path, remote_relative_path, keep_mode, is_directory, description = mapping"""
+    return iter((self.relative_path, self.windows_relative_path, self.remote_relative_path, self.keep_mode, self.is_directory, self.description))
 
 
 @dataclass
@@ -88,16 +90,23 @@ class Config:
 
   @property
   def windows_user_dir(self) -> Optional[Path]:
+    """Get the Windows user directory path if windows_user is set"""
     if not self.windows_user:
       return None
     return Path(f"/mnt/c/Users/{self.windows_user}")
 
   @property
   def local_home(self) -> Path:
+    """Get the local home directory path"""
     return Path.home()
 
   @property
   def remote_url(self) -> str:
+    """
+    Get the remote SSH URL, e.g., user@host
+
+    Fails if remote_user or remote_host is not set.
+    """
     if not self.remote_user or not self.remote_host:
       raise ValueError("Remote user and host must be configured")
     return f"{self.remote_user}@{self.remote_host}"
@@ -107,34 +116,85 @@ class Config:
 # File Mappings
 ALL_FILE_MAPPINGS: List[FileMapping] = [
     # Claude Code
-    FileMapping(Path(".claude.json"), None, KeepMode.KEEP_BOTH,
-                description="Claude config"),
-    FileMapping(Path(".claude/settings.json"), None,
-                KeepMode.PREFER_LINUX, description="Claude settings file"),
-    FileMapping(Path(".claude/CLAUDE.md"), None,
-                KeepMode.PREFER_LINUX, description="Claude prompt file"),
-    FileMapping(Path(".claude/agents/"), None, KeepMode.PREFER_LINUX,
-                is_directory=True, description="Claude subagents"),
+    FileMapping(
+      relative_path=Path(".claude.json"),
+      windows_relative_path=None,
+      remote_relative_path=None,
+      keep_mode=KeepMode.KEEP_BOTH,
+      description="Claude config"
+    ),
+    FileMapping(
+      relative_path=Path(".claude/settings.json"),
+      windows_relative_path=None,
+      remote_relative_path=None,
+      keep_mode=KeepMode.PREFER_LINUX,
+      description="Claude settings file"
+    ),
+    FileMapping(
+      relative_path=Path(".claude/CLAUDE.md"),
+      windows_relative_path=None,
+      remote_relative_path=None,
+      keep_mode=KeepMode.PREFER_LINUX,
+      description="Claude prompt file"
+    ),
+    FileMapping(
+      relative_path=Path(".claude/agents/"),
+      windows_relative_path=None,
+      remote_relative_path=None,
+      keep_mode=KeepMode.PREFER_LINUX,
+      is_directory=True,
+      description="Claude subagents"
+    ),
 
     # Gemini CLI
-    FileMapping(Path(".gemini/settings.json"), None,
-                KeepMode.KEEP_BOTH, description="Gemini settings"),
-    FileMapping(Path(".gemini/GEMINI.md"), None,
-                KeepMode.PREFER_LINUX, description="Gemini prompt file"),
+    FileMapping(
+      relative_path=Path(".gemini/settings.json"),
+      windows_relative_path=None,
+      remote_relative_path=None,
+      keep_mode=KeepMode.KEEP_BOTH,
+      description="Gemini settings"
+    ),
+    FileMapping(
+      relative_path=Path(".gemini/GEMINI.md"),
+      windows_relative_path=None,
+      remote_relative_path=None,
+      keep_mode=KeepMode.PREFER_LINUX,
+      description="Gemini prompt file"
+    ),
 
     # Codex
-    FileMapping(Path(".codex/config.toml"), None,
-                KeepMode.KEEP_BOTH, description="Codex config"),
-    FileMapping(Path(".codex/AGENTS.md"), None,
-                KeepMode.PREFER_LINUX, description="Codex prompt file"),
+    FileMapping(
+      relative_path=Path(".codex/config.toml"),
+      windows_relative_path=None,
+      remote_relative_path=None,
+      keep_mode=KeepMode.KEEP_BOTH,
+      description="Codex config"
+    ),
+    FileMapping(
+      relative_path=Path(".codex/AGENTS.md"),
+      windows_relative_path=None,
+      remote_relative_path=None,
+      keep_mode=KeepMode.PREFER_LINUX,
+      description="Codex prompt file"
+    ),
 
     # Cline
-    FileMapping(Path(".vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"),
-                Path("AppData/Roaming/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"),
-                KeepMode.KEEP_BOTH, description="Cline MCP settings for VSCode"),
+    FileMapping(
+      relative_path=Path(".vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"),
+      windows_relative_path=Path("AppData/Roaming/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"),
+      remote_relative_path=None,
+      keep_mode=KeepMode.KEEP_BOTH,
+      description="Cline MCP settings for VSCode"
+    ),
     # The windows path is dependent on the user's Documents folder location, not necessarily "Documents"
-    # FileMapping(Path("Cline/Rules/"), Path("Documents/Cline/Rules/"),
-    #             KeepMode.PREFER_LINUX, is_directory=True, description="Cline rules"),
+    # FileMapping(
+    #   relative_path=Path("Cline/Rules/"),
+    #   windows_relative_path=Path("Documents/Cline/Rules/"),
+    #   remote_relative_path=None,
+    #   keep_mode=KeepMode.PREFER_LINUX,
+    #   is_directory=True,
+    #   description="Cline rules"
+    # ),
 ]
 # Default rsync options
 DEFAULT_RSYNC_OPTS = '-avz --update --delete --human-readable --mkpath'
@@ -179,6 +239,7 @@ class TaskBuilder:
     """Build tasks for pushing Windows files to Linux then to remote."""
     relative_path = mapping.relative_path
     windows_relative_path = mapping.windows_relative_path
+    remote_relative_path = mapping.remote_relative_path
     description = mapping.description
     is_directory = mapping.is_directory
 
@@ -196,7 +257,7 @@ class TaskBuilder:
 
     tasks.append(RsyncTask(
         src=linux_path,
-        dest=self._build_remote_path(relative_path),
+        dest=self._build_remote_path(relative_path, remote_relative_path),
         description=f"Linux to Remote: {description}",
         is_directory=is_directory
     ))
@@ -206,6 +267,7 @@ class TaskBuilder:
     """Build tasks for pushing Linux files to Windows then to remote."""
     relative_path = mapping.relative_path
     windows_relative_path = mapping.windows_relative_path
+    remote_relative_path = mapping.remote_relative_path
     description = mapping.description
     is_directory = mapping.is_directory
 
@@ -223,7 +285,7 @@ class TaskBuilder:
 
     tasks.append(RsyncTask(
         src=linux_path,
-        dest=self._build_remote_path(relative_path),
+        dest=self._build_remote_path(relative_path, remote_relative_path),
         description=f"Linux to Remote: {description}",
         is_directory=is_directory
     ))
@@ -233,14 +295,16 @@ class TaskBuilder:
     """Build tasks for pushing Linux and Windows files to remote separately."""
     relative_path = mapping.relative_path
     windows_relative_path = mapping.windows_relative_path
+    remote_relative_path = mapping.remote_relative_path
     description = mapping.description
     is_directory = mapping.is_directory
 
     tasks: List[RsyncTask] = []
     if self.config.windows_user_dir is not None:
       windows_specific_relative_path: Path = windows_relative_path or relative_path
-      remote_relative_path_win = self._build_suffix_path(
-          relative_path, ".windows")
+      # Use custom remote path or fall back to relative_path, then add .windows suffix
+      base_remote_path = remote_relative_path if remote_relative_path else relative_path
+      remote_relative_path_win = self._build_suffix_path(base_remote_path, ".windows")
       tasks.append(RsyncTask(
           src=self.config.windows_user_dir / windows_specific_relative_path,
           dest=self._build_remote_path(remote_relative_path_win),
@@ -248,8 +312,9 @@ class TaskBuilder:
           is_directory=is_directory
       ))
 
-    remote_relative_path_linux = self._build_suffix_path(
-        relative_path, ".linux")
+    # Use custom remote path or fall back to relative_path, then add .linux suffix
+    base_remote_path = remote_relative_path if remote_relative_path else relative_path
+    remote_relative_path_linux = self._build_suffix_path(base_remote_path, ".linux")
     linux_path = self.config.local_home / relative_path
     tasks.append(RsyncTask(
         src=linux_path,
@@ -264,6 +329,7 @@ class TaskBuilder:
     """Build tasks for pulling Linux files from remote then to Windows."""
     relative_path = mapping.relative_path
     windows_relative_path = mapping.windows_relative_path
+    remote_relative_path = mapping.remote_relative_path
     description = mapping.description
     is_directory = mapping.is_directory
 
@@ -271,7 +337,7 @@ class TaskBuilder:
 
     linux_path = self.config.local_home / relative_path
     tasks.append(RsyncTask(
-        src=self._build_remote_path(relative_path),
+        src=self._build_remote_path(relative_path, remote_relative_path),
         dest=linux_path,
         description=f"Remote to Linux: {description}",
         is_directory=is_directory
@@ -292,14 +358,16 @@ class TaskBuilder:
     """Build tasks for pulling Linux and Windows files from remote separately."""
     relative_path = mapping.relative_path
     windows_relative_path = mapping.windows_relative_path
+    remote_relative_path = mapping.remote_relative_path
     description = mapping.description
     is_directory = mapping.is_directory
 
     tasks: List[RsyncTask] = []
 
     linux_path = self.config.local_home / relative_path
-    remote_relative_path_linux = self._build_suffix_path(
-        relative_path, ".linux")
+    # Use custom remote path or fall back to relative_path, then add .linux suffix
+    base_remote_path = remote_relative_path if remote_relative_path else relative_path
+    remote_relative_path_linux = self._build_suffix_path(base_remote_path, ".linux")
     tasks.append(RsyncTask(
         src=self._build_remote_path(remote_relative_path_linux),
         dest=linux_path,
@@ -309,8 +377,9 @@ class TaskBuilder:
 
     if self.config.windows_user_dir is not None:
       windows_specific_relative_path: Path = windows_relative_path or relative_path
-      remote_relative_path_win = self._build_suffix_path(
-          relative_path, ".windows")
+      # Use custom remote path or fall back to relative_path, then add .windows suffix
+      base_remote_path = remote_relative_path if remote_relative_path else relative_path
+      remote_relative_path_win = self._build_suffix_path(base_remote_path, ".windows")
       tasks.append(RsyncTask(
           src=self._build_remote_path(remote_relative_path_win),
           dest=self.config.windows_user_dir / windows_specific_relative_path,
@@ -320,9 +389,20 @@ class TaskBuilder:
 
     return tasks
 
-  def _build_remote_path(self, relative_path: Path) -> str:
-    """Build remote path string for rsync destination."""
-    return f"{self.config.remote_url}:{self.config.remote_base_dir / relative_path}"
+  def _build_remote_path(self, relative_path: Path, custom_relative_path: Optional[Path] = None) -> str:
+    """
+    Build remote path string for rsync destination.
+
+    Args:
+      relative_path: Default path to use if custom_relative_path is not provided
+      custom_relative_path: Optional custom path to override the default remote path
+
+    Returns:
+      Remote path string in format user@host:path
+    """
+    # If custom_relative_path is provided, use it; otherwise, fall back to relative_path
+    base_remote_relative_path = custom_relative_path if custom_relative_path else relative_path
+    return f"{self.config.remote_url}:{self.config.remote_base_dir / base_remote_relative_path}"
 
   def _build_suffix_path(self, orig_path: Path, suffix: str) -> Path:
     """Build path with suffix added before extension"""
