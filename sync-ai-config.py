@@ -167,7 +167,7 @@ ALL_FILE_MAPPINGS: List[FileMapping] = [
       relative_path=Path(".codex/config.toml"),
       windows_relative_path=None,
       remote_relative_path=None,
-      keep_mode=KeepMode.KEEP_BOTH,
+      keep_mode=KeepMode.PREFER_LINUX,
       description="Codex config"
     ),
     FileMapping(
@@ -183,7 +183,7 @@ ALL_FILE_MAPPINGS: List[FileMapping] = [
       relative_path=Path(".vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"),
       windows_relative_path=Path("AppData/Roaming/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"),
       remote_relative_path=None,
-      keep_mode=KeepMode.KEEP_BOTH,
+      keep_mode=KeepMode.PREFER_LINUX,
       description="Cline MCP settings for VSCode"
     ),
     # The windows path is dependent on the user's Documents folder location, not necessarily "Documents"
