@@ -151,7 +151,7 @@ ALL_FILE_MAPPINGS: List[FileMapping] = [
       relative_path=Path(".gemini/settings.json"),
       windows_relative_path=None,
       remote_relative_path=None,
-      keep_mode=KeepMode.KEEP_BOTH,
+      keep_mode=KeepMode.PREFER_LINUX,
       description="Gemini settings"
     ),
     FileMapping(
