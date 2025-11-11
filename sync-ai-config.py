@@ -131,6 +131,13 @@ ALL_FILE_MAPPINGS: List[FileMapping] = [
       description="Claude settings file"
     ),
     FileMapping(
+      relative_path=Path(".claude/config.json"),
+      windows_relative_path=None,
+      remote_relative_path=None,
+      keep_mode=KeepMode.PREFER_LINUX,
+      description="Claude config.json file"
+    ),
+    FileMapping(
       relative_path=Path(".claude/CLAUDE.md"),
       windows_relative_path=None,
       remote_relative_path=None,
