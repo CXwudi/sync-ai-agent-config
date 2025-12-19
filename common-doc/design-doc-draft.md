@@ -41,6 +41,9 @@ rsync -avz ~/.gemini/GEMINI.md {USER}@{HOST}:~/sync-files/ai-agents-related/.gem
 rsync -avz ~/.codex/config.toml {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/config.linux.toml
 rsync -avz /mnt/c/Users/{WIN_USER}/.codex/config.toml {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/config.windows.toml
 
+rsync -avz ~/.codex/auth.json /mnt/c/Users/{WIN_USER}/.codex/auth.json
+rsync -avz ~/.codex/auth.json {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/auth.json
+
 rsync -avz /mnt/c/Users/{WIN_USER}/.codex/AGENTS.md ~/.codex/AGENTS.md
 rsync -avz ~/.codex/AGENTS.md {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/AGENTS.md
 
@@ -78,9 +81,11 @@ rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.gemini/GEMINI.md /mnt/c
 
 # Codex
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/config.linux.toml ~/.codex/config.toml
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/auth.json ~/.codex/auth.json
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/AGENTS.md ~/.codex/AGENTS.md
 
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/config.windows.toml /mnt/c/Users/{WIN_USER}/.codex/config.toml
+rsync -avz ~/.codex/auth.json /mnt/c/Users/{WIN_USER}/.codex/auth.json
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/AGENTS.md /mnt/c/Users/{WIN_USER}/.codex/AGENTS.md
 
 # Cline

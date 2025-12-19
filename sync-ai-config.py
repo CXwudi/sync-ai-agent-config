@@ -178,6 +178,13 @@ ALL_FILE_MAPPINGS: List[FileMapping] = [
       description="Codex config"
     ),
     FileMapping(
+      relative_path=Path(".codex/auth.json"),
+      windows_relative_path=None,
+      remote_relative_path=None,
+      keep_mode=KeepMode.PREFER_LINUX,
+      description="Codex auth"
+    ),
+    FileMapping(
       relative_path=Path(".codex/AGENTS.md"),
       windows_relative_path=None,
       remote_relative_path=None,
