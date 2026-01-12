@@ -47,6 +47,25 @@ rsync -avz ~/.codex/auth.json {USER}@{HOST}:~/sync-files/ai-agents-related/.code
 rsync -avz /mnt/c/Users/{WIN_USER}/.codex/AGENTS.md ~/.codex/AGENTS.md
 rsync -avz ~/.codex/AGENTS.md {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/AGENTS.md
 
+# OpenCode
+rsync -avz ~/.config/opencode/opencode.json /mnt/c/Users/{WIN_USER}/.config/opencode/opencode.json
+rsync -avz ~/.config/opencode/opencode.json {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/opencode.json
+
+rsync -avz ~/.config/opencode/opencode.jsonc /mnt/c/Users/{WIN_USER}/.config/opencode/opencode.jsonc
+rsync -avz ~/.config/opencode/opencode.jsonc {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/opencode.jsonc
+
+rsync -avz ~/.config/opencode/agent/ /mnt/c/Users/{WIN_USER}/.config/opencode/agent/
+rsync -avz ~/.config/opencode/agent/ {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/agent/
+
+rsync -avz ~/.config/opencode/command/ /mnt/c/Users/{WIN_USER}/.config/opencode/command/
+rsync -avz ~/.config/opencode/command/ {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/command/
+
+rsync -avz ~/.config/opencode/plugin/ /mnt/c/Users/{WIN_USER}/.config/opencode/plugin/
+rsync -avz ~/.config/opencode/plugin/ {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/plugin/
+
+rsync -avz ~/.local/share/opencode/auth.json /mnt/c/Users/{WIN_USER}/.local/share/opencode/auth.json
+rsync -avz ~/.local/share/opencode/auth.json {USER}@{HOST}:~/sync-files/ai-agents-related/.local/share/opencode/auth.json
+
 # Cline
 rsync -avz ~/.vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json {USER}@{HOST}:~/sync-files/ai-agents-related/.vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.linux.json
 rsync -avz /mnt/c/Users/{WIN_USER}/AppData/Roaming/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json {USER}@{HOST}:~/sync-files/ai-agents-related/.vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.windows.json
@@ -87,6 +106,21 @@ rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/AGENTS.md ~/.code
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/config.windows.toml /mnt/c/Users/{WIN_USER}/.codex/config.toml
 rsync -avz ~/.codex/auth.json /mnt/c/Users/{WIN_USER}/.codex/auth.json
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/AGENTS.md /mnt/c/Users/{WIN_USER}/.codex/AGENTS.md
+
+# OpenCode
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/opencode.json ~/.config/opencode/opencode.json
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/opencode.jsonc ~/.config/opencode/opencode.jsonc
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/agent/ ~/.config/opencode/agent/
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/command/ ~/.config/opencode/command/
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/plugin/ ~/.config/opencode/plugin/
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.local/share/opencode/auth.json ~/.local/share/opencode/auth.json
+
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/opencode.json /mnt/c/Users/{WIN_USER}/.config/opencode/opencode.json
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/opencode.jsonc /mnt/c/Users/{WIN_USER}/.config/opencode/opencode.jsonc
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/agent/ /mnt/c/Users/{WIN_USER}/.config/opencode/agent/
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/command/ /mnt/c/Users/{WIN_USER}/.config/opencode/command/
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/plugin/ /mnt/c/Users/{WIN_USER}/.config/opencode/plugin/
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.local/share/opencode/auth.json /mnt/c/Users/{WIN_USER}/.local/share/opencode/auth.json
 
 # Cline
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/Cline/Rules/ ~/Cline/Rules/

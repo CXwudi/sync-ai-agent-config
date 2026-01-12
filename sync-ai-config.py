@@ -192,6 +192,53 @@ ALL_FILE_MAPPINGS: List[FileMapping] = [
       description="Codex prompt file"
     ),
 
+    # OpenCode
+    FileMapping(
+      relative_path=Path(".config/opencode/opencode.json"),
+      windows_relative_path=None,
+      remote_relative_path=None,
+      keep_mode=KeepMode.PREFER_LINUX,
+      description="OpenCode main config (JSON)"
+    ),
+    FileMapping(
+      relative_path=Path(".config/opencode/opencode.jsonc"),
+      windows_relative_path=None,
+      remote_relative_path=None,
+      keep_mode=KeepMode.PREFER_LINUX,
+      description="OpenCode main config (JSONC)"
+    ),
+    FileMapping(
+      relative_path=Path(".config/opencode/agent"),
+      windows_relative_path=None,
+      remote_relative_path=None,
+      keep_mode=KeepMode.PREFER_LINUX,
+      is_directory=True,
+      description="OpenCode custom agents"
+    ),
+    FileMapping(
+      relative_path=Path(".config/opencode/command"),
+      windows_relative_path=None,
+      remote_relative_path=None,
+      keep_mode=KeepMode.PREFER_LINUX,
+      is_directory=True,
+      description="OpenCode custom commands"
+    ),
+    FileMapping(
+      relative_path=Path(".config/opencode/plugin"),
+      windows_relative_path=None,
+      remote_relative_path=None,
+      keep_mode=KeepMode.PREFER_LINUX,
+      is_directory=True,
+      description="OpenCode plugins"
+    ),
+    FileMapping(
+      relative_path=Path(".local/share/opencode/auth.json"),
+      windows_relative_path=None,
+      remote_relative_path=None,
+      keep_mode=KeepMode.PREFER_LINUX,
+      description="OpenCode auth credentials"
+    ),
+
     # Cline
     FileMapping(
       relative_path=Path(".vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"),
