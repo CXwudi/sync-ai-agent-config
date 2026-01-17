@@ -208,6 +208,13 @@ ALL_FILE_MAPPINGS: List[FileMapping] = [
       description="OpenCode main config (JSONC)"
     ),
     FileMapping(
+      relative_path=Path(".config/opencode/AGENTS.md"),
+      windows_relative_path=None,
+      remote_relative_path=None,
+      keep_mode=KeepMode.PREFER_LINUX,
+      description="OpenCode prompt file"
+    ),
+    FileMapping(
       relative_path=Path(".config/opencode/agent"),
       windows_relative_path=None,
       remote_relative_path=None,

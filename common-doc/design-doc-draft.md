@@ -54,6 +54,9 @@ rsync -avz ~/.config/opencode/opencode.json {USER}@{HOST}:~/sync-files/ai-agents
 rsync -avz ~/.config/opencode/opencode.jsonc /mnt/c/Users/{WIN_USER}/.config/opencode/opencode.jsonc
 rsync -avz ~/.config/opencode/opencode.jsonc {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/opencode.jsonc
 
+rsync -avz ~/.config/opencode/AGENTS.md /mnt/c/Users/{WIN_USER}/.config/opencode/AGENTS.md
+rsync -avz ~/.config/opencode/AGENTS.md {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/AGENTS.md
+
 rsync -avz ~/.config/opencode/agent/ /mnt/c/Users/{WIN_USER}/.config/opencode/agent/
 rsync -avz ~/.config/opencode/agent/ {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/agent/
 
@@ -110,6 +113,7 @@ rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/AGENTS.md /mnt/c/
 # OpenCode
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/opencode.json ~/.config/opencode/opencode.json
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/opencode.jsonc ~/.config/opencode/opencode.jsonc
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/AGENTS.md ~/.config/opencode/AGENTS.md
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/agent/ ~/.config/opencode/agent/
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/command/ ~/.config/opencode/command/
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/plugin/ ~/.config/opencode/plugin/
@@ -117,6 +121,7 @@ rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.local/share/opencode/au
 
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/opencode.json /mnt/c/Users/{WIN_USER}/.config/opencode/opencode.json
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/opencode.jsonc /mnt/c/Users/{WIN_USER}/.config/opencode/opencode.jsonc
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/AGENTS.md /mnt/c/Users/{WIN_USER}/.config/opencode/AGENTS.md
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/agent/ /mnt/c/Users/{WIN_USER}/.config/opencode/agent/
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/command/ /mnt/c/Users/{WIN_USER}/.config/opencode/command/
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/plugin/ /mnt/c/Users/{WIN_USER}/.config/opencode/plugin/
