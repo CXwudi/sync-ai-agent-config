@@ -216,3 +216,7 @@ secrets/
 # My own
 agent-rsp/
 ask_human*.md
+
+# Agent Config Folders
+agents-configs/*
+!agents-configs/create_links.sh
