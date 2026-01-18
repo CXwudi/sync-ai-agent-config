@@ -152,6 +152,14 @@ ALL_FILE_MAPPINGS: List[FileMapping] = [
       is_directory=True,
       description="Claude subagents"
     ),
+    FileMapping(
+      relative_path=Path(".claude/skills/"),
+      windows_relative_path=None,
+      remote_relative_path=None,
+      keep_mode=KeepMode.PREFER_LINUX,
+      is_directory=True,
+      description="Claude skills"
+    ),
 
     # Gemini CLI
     FileMapping(
@@ -215,7 +223,15 @@ ALL_FILE_MAPPINGS: List[FileMapping] = [
       description="OpenCode prompt file"
     ),
     FileMapping(
-      relative_path=Path(".config/opencode/agent"),
+      relative_path=Path(".config/opencode/prompts/"),
+      windows_relative_path=None,
+      remote_relative_path=None,
+      keep_mode=KeepMode.PREFER_LINUX,
+      is_directory=True,
+      description="OpenCode custom prompts"
+    ),
+    FileMapping(
+      relative_path=Path(".config/opencode/agents/"),
       windows_relative_path=None,
       remote_relative_path=None,
       keep_mode=KeepMode.PREFER_LINUX,
@@ -223,7 +239,7 @@ ALL_FILE_MAPPINGS: List[FileMapping] = [
       description="OpenCode custom agents"
     ),
     FileMapping(
-      relative_path=Path(".config/opencode/command"),
+      relative_path=Path(".config/opencode/commands/"),
       windows_relative_path=None,
       remote_relative_path=None,
       keep_mode=KeepMode.PREFER_LINUX,
@@ -231,7 +247,7 @@ ALL_FILE_MAPPINGS: List[FileMapping] = [
       description="OpenCode custom commands"
     ),
     FileMapping(
-      relative_path=Path(".config/opencode/plugin"),
+      relative_path=Path(".config/opencode/plugins/"),
       windows_relative_path=None,
       remote_relative_path=None,
       keep_mode=KeepMode.PREFER_LINUX,

@@ -21,14 +21,17 @@ Only when the Windows user is specified, the Windows-specific operations are per
 rsync -avz ~/.claude.json {USER}@{HOST}:~/sync-files/ai-agents-related/.claude.linux.json
 rsync -avz /mnt/c/Users/{WIN_USER}/.claude.json {USER}@{HOST}:~/sync-files/ai-agents-related/.claude.windows.json
 
-rsync -avz /mnt/c/Users/{WIN_USER}/.claude/settings.json ~/.claude/settings.json
+rsync -avz ~/.claude/settings.json /mnt/c/Users/{WIN_USER}/.claude/settings.json
 rsync -avz ~/.claude/settings.json {USER}@{HOST}:~/sync-files/ai-agents-related/.claude/settings.json
 
-rsync -avz /mnt/c/Users/{WIN_USER}/.claude/CLAUDE.md ~/.claude/CLAUDE.md
+rsync -avz ~/.claude/CLAUDE.md /mnt/c/Users/{WIN_USER}/.claude/CLAUDE.md
 rsync -avz ~/.claude/CLAUDE.md {USER}@{HOST}:~/sync-files/ai-agents-related/.claude/CLAUDE.md
 
-rsync -avz /mnt/c/Users/{WIN_USER}/.claude/agents/ ~/.claude/agents/
+rsync -avz ~/.claude/agents/ /mnt/c/Users/{WIN_USER}/.claude/agents/
 rsync -avz ~/.claude/agents/ {USER}@{HOST}:~/sync-files/ai-agents-related/.claude/agents/
+
+rsync -avz ~/.claude/skills/ /mnt/c/Users/{WIN_USER}/.claude/skills/
+rsync -avz ~/.claude/skills/ {USER}@{HOST}:~/sync-files/ai-agents-related/.claude/skills/
 
 # Gemini CLI
 rsync -avz ~/.gemini/settings.json {USER}@{HOST}:~/sync-files/ai-agents-related/.gemini/settings.linux.json
@@ -57,14 +60,17 @@ rsync -avz ~/.config/opencode/opencode.jsonc {USER}@{HOST}:~/sync-files/ai-agent
 rsync -avz ~/.config/opencode/AGENTS.md /mnt/c/Users/{WIN_USER}/.config/opencode/AGENTS.md
 rsync -avz ~/.config/opencode/AGENTS.md {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/AGENTS.md
 
-rsync -avz ~/.config/opencode/agent/ /mnt/c/Users/{WIN_USER}/.config/opencode/agent/
-rsync -avz ~/.config/opencode/agent/ {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/agent/
+rsync -avz ~/.config/opencode/prompts/ /mnt/c/Users/{WIN_USER}/.config/opencode/prompts/
+rsync -avz ~/.config/opencode/prompts/ {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/prompts/
 
-rsync -avz ~/.config/opencode/command/ /mnt/c/Users/{WIN_USER}/.config/opencode/command/
-rsync -avz ~/.config/opencode/command/ {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/command/
+rsync -avz ~/.config/opencode/agents/ /mnt/c/Users/{WIN_USER}/.config/opencode/agents/
+rsync -avz ~/.config/opencode/agents/ {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/agents/
 
-rsync -avz ~/.config/opencode/plugin/ /mnt/c/Users/{WIN_USER}/.config/opencode/plugin/
-rsync -avz ~/.config/opencode/plugin/ {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/plugin/
+rsync -avz ~/.config/opencode/commands/ /mnt/c/Users/{WIN_USER}/.config/opencode/commands/
+rsync -avz ~/.config/opencode/commands/ {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/commands/
+
+rsync -avz ~/.config/opencode/plugins/ /mnt/c/Users/{WIN_USER}/.config/opencode/plugins/
+rsync -avz ~/.config/opencode/plugins/ {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/plugins/
 
 rsync -avz ~/.local/share/opencode/auth.json /mnt/c/Users/{WIN_USER}/.local/share/opencode/auth.json
 rsync -avz ~/.local/share/opencode/auth.json {USER}@{HOST}:~/sync-files/ai-agents-related/.local/share/opencode/auth.json
@@ -114,17 +120,19 @@ rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/AGENTS.md /mnt/c/
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/opencode.json ~/.config/opencode/opencode.json
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/opencode.jsonc ~/.config/opencode/opencode.jsonc
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/AGENTS.md ~/.config/opencode/AGENTS.md
-rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/agent/ ~/.config/opencode/agent/
-rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/command/ ~/.config/opencode/command/
-rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/plugin/ ~/.config/opencode/plugin/
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/prompts/ ~/.config/opencode/prompts/
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/agents/ ~/.config/opencode/agents/
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/commands/ ~/.config/opencode/commands/
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/plugins/ ~/.config/opencode/plugins/
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.local/share/opencode/auth.json ~/.local/share/opencode/auth.json
 
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/opencode.json /mnt/c/Users/{WIN_USER}/.config/opencode/opencode.json
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/opencode.jsonc /mnt/c/Users/{WIN_USER}/.config/opencode/opencode.jsonc
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/AGENTS.md /mnt/c/Users/{WIN_USER}/.config/opencode/AGENTS.md
-rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/agent/ /mnt/c/Users/{WIN_USER}/.config/opencode/agent/
-rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/command/ /mnt/c/Users/{WIN_USER}/.config/opencode/command/
-rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/plugin/ /mnt/c/Users/{WIN_USER}/.config/opencode/plugin/
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/prompts/ /mnt/c/Users/{WIN_USER}/.config/opencode/prompts/
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/agents/ /mnt/c/Users/{WIN_USER}/.config/opencode/agents/
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/commands/ /mnt/c/Users/{WIN_USER}/.config/opencode/commands/
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/plugins/ /mnt/c/Users/{WIN_USER}/.config/opencode/plugins/
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.local/share/opencode/auth.json /mnt/c/Users/{WIN_USER}/.local/share/opencode/auth.json
 
 # Cline
