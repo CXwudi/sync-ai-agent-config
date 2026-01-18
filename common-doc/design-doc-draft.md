@@ -107,7 +107,7 @@ rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/auth.json ~/.code
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/AGENTS.md ~/.codex/AGENTS.md
 
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/config.windows.toml /mnt/c/Users/{WIN_USER}/.codex/config.toml
-rsync -avz ~/.codex/auth.json /mnt/c/Users/{WIN_USER}/.codex/auth.json
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/auth.json /mnt/c/Users/{WIN_USER}/.codex/auth.json
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/AGENTS.md /mnt/c/Users/{WIN_USER}/.codex/AGENTS.md
 
 # OpenCode
