@@ -176,6 +176,14 @@ ALL_FILE_MAPPINGS: List[FileMapping] = [
       keep_mode=KeepMode.PREFER_LINUX,
       description="Gemini prompt file"
     ),
+    FileMapping(
+      relative_path=Path(".gemini/skills/"),
+      windows_relative_path=None,
+      remote_relative_path=None,
+      keep_mode=KeepMode.PREFER_LINUX,
+      is_directory=True,
+      description="Gemini skills"
+    ),
 
     # Codex
     FileMapping(
@@ -198,6 +206,14 @@ ALL_FILE_MAPPINGS: List[FileMapping] = [
       remote_relative_path=None,
       keep_mode=KeepMode.PREFER_LINUX,
       description="Codex prompt file"
+    ),
+    FileMapping(
+      relative_path=Path(".codex/skills/"),
+      windows_relative_path=None,
+      remote_relative_path=None,
+      keep_mode=KeepMode.PREFER_LINUX,
+      is_directory=True,
+      description="Codex skills"
     ),
 
     # OpenCode

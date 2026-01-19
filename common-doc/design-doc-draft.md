@@ -40,6 +40,9 @@ rsync -avz /mnt/c/Users/{WIN_USER}/.gemini/settings.json {USER}@{HOST}:~/sync-fi
 rsync -avz /mnt/c/Users/{WIN_USER}/.gemini/GEMINI.md ~/.gemini/GEMINI.md
 rsync -avz ~/.gemini/GEMINI.md {USER}@{HOST}:~/sync-files/ai-agents-related/.gemini/GEMINI.md
 
+rsync -avz ~/.gemini/skills/ /mnt/c/Users/{WIN_USER}/.gemini/skills/
+rsync -avz ~/.gemini/skills/ {USER}@{HOST}:~/sync-files/ai-agents-related/.gemini/skills/
+
 # Codex
 rsync -avz ~/.codex/config.toml {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/config.linux.toml
 rsync -avz /mnt/c/Users/{WIN_USER}/.codex/config.toml {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/config.windows.toml
@@ -49,6 +52,9 @@ rsync -avz ~/.codex/auth.json {USER}@{HOST}:~/sync-files/ai-agents-related/.code
 
 rsync -avz /mnt/c/Users/{WIN_USER}/.codex/AGENTS.md ~/.codex/AGENTS.md
 rsync -avz ~/.codex/AGENTS.md {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/AGENTS.md
+
+rsync -avz ~/.codex/skills/ /mnt/c/Users/{WIN_USER}/.codex/skills/
+rsync -avz ~/.codex/skills/ {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/skills/
 
 # OpenCode
 rsync -avz ~/.config/opencode/opencode.json /mnt/c/Users/{WIN_USER}/.config/opencode/opencode.json
@@ -103,18 +109,22 @@ rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.claude/settings.json /m
 # Gemini CLI
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.gemini/settings.linux.json ~/.gemini/settings.json
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.gemini/GEMINI.md ~/.gemini/GEMINI.md
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.gemini/skills/ ~/.gemini/skills/
 
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.gemini/settings.windows.json /mnt/c/Users/{WIN_USER}/.gemini/settings.json
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.gemini/GEMINI.md /mnt/c/Users/{WIN_USER}/.gemini/GEMINI.md
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.gemini/skills/ /mnt/c/Users/{WIN_USER}/.gemini/skills/
 
 # Codex
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/config.linux.toml ~/.codex/config.toml
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/auth.json ~/.codex/auth.json
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/AGENTS.md ~/.codex/AGENTS.md
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/skills/ ~/.codex/skills/
 
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/config.windows.toml /mnt/c/Users/{WIN_USER}/.codex/config.toml
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/auth.json /mnt/c/Users/{WIN_USER}/.codex/auth.json
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/AGENTS.md /mnt/c/Users/{WIN_USER}/.codex/AGENTS.md
+rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/skills/ /mnt/c/Users/{WIN_USER}/.codex/skills/
 
 # OpenCode
 rsync -avz {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/opencode.json ~/.config/opencode/opencode.json
