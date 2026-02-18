@@ -22,7 +22,7 @@ jobs:
 
       - name: Check module syntax
         run: |
-          uv run python -m py_compile src/sync_ai_config/cli.py
+          uv run python -m compileall src/sync_ai_config
 
       - name: Validate CLI help
         run: |
