@@ -1,23 +1,18 @@
 # 🤖 AI Agent Config Sync
 
-Hey there! This is a little helper script to keep your AI agent configuration files (for Claude, Gemini, etc.) synced up between your different machines (Linux, Windows, and a remote server).
+Hey there! This is a helper tool to keep your AI agent configuration files (Claude, Gemini, etc.) synced across Linux, Windows, and a remote server.
 
-It uses `rsync` under the hood to make sure everything is in the right place.
+It uses `rsync` under the hood.
 
 ## Prerequisites
 
-Make sure you have `rsync` installed on your system. If not, you can usually get it with your system's package manager:
-
-```bash
-# On Debian/Ubuntu
-sudo apt-get install rsync
-```
+- `rsync` (>= 3.2.3, for `--mkpath` support)
+- [uv](https://docs.astral.sh/uv/)
+- [just](https://github.com/casey/just) (for development)
 
 ## Quick Setup
 
-For the script to know where to sync your files, you'll need to give it some details about your remote server and Windows username. The easiest way is to set these as environment variables.
-
-You can add these to your `.bashrc` or `.zshrc` file:
+Set these environment variables so the tool knows where to sync:
 
 ```bash
 export SYNC_USER="your_remote_username"
@@ -26,29 +21,44 @@ export SYNC_DIR="~/sync-files/ai-agents-related" # Optional: default is ~/sync-f
 export WIN_USER="your_windows_username" # e.g., "jane" if your windows path is /mnt/c/Users/jane
 ```
 
-## How to Use
+## Usage
 
 The two main commands are `push` and `pull`.
 
 ### Pushing Changes to Remote
 
-When you've made changes locally and want to send them to the remote server, run:
-
 ```bash
-uv run sync-ai-config.py push
+uv run sync-ai-config push
 ```
 
 ### Pulling Changes from Remote
 
-To grab the latest configs from the remote server and update your local machine(s), run:
-
 ```bash
-uv run sync-ai-config.py pull
+uv run sync-ai-config pull
 ```
 
-## Command-Line Options
+### Example: Dry Run
 
-You can also use command-line flags to override the environment variables or change the script's behavior.
+```bash
+uv run sync-ai-config push --dry-run
+```
+
+## Development
+
+```bash
+uv sync
+just test       # Run tests
+just typecheck  # Type check with ty
+just lint       # Lint with ruff
+just format     # Format with black
+just build-exe  # Build a single-file executable
+```
+
+## Notes
+
+- The legacy script is now `sync-ai-config-old.py`.
+
+## Command-Line Options
 
 | Argument | Flag | Environment Variable | Description |
 |---|---|---|---|
@@ -61,13 +71,3 @@ You can also use command-line flags to override the environment variables or cha
 | **Rsync Opts** | `--rsync-opts` | | A string of options to pass directly to `rsync`. |
 | **Log Level** | `--log-level` | | Set the logging verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`). |
 | **Version** | `--version` | | Show the script's version. |
-
-### Example: Dry Run
-
-If you want to see what the script is going to do without making any changes, use the `--dry-run` flag. This is super helpful for checking things!
-
-```bash
-uv run sync-ai-config.py push --dry-run
-```
-
-That's it! Happy syncing! ✨

@@ -10,20 +10,20 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.12"
-        
-    - name: Check script syntax
-      run: |
-        python -m py_compile sync-ai-config.py
-        
-    - name: Validate script help
-      run: |
-        python sync-ai-config.py --help
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.11"
+
+      - name: Check module syntax
+        run: |
+          uv run python -m compileall src/sync_ai_config
+
+      - name: Validate CLI help
+        run: |
+          uv run sync-ai-config --help
