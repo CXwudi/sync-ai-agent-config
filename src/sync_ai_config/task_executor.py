@@ -19,13 +19,16 @@ class TaskExecutor:
   def __init__(self, config: Config):
     self.config = config
 
-  def execute_tasks(self, tasks: List[RsyncTask]) -> None:
+  def execute_tasks(self, tasks: List[RsyncTask]) -> bool:
     """Execute all tasks."""
     logger.info("Executing %d tasks", len(tasks))
+    all_succeeded = True
     for task in tasks:
-      self._execute_one_task(task)
+      if not self._execute_one_task(task):
+        all_succeeded = False
     if self.config.dry_run:
       logger.info("Dry run complete")
+    return all_succeeded
 
   def _execute_one_task(self, task: RsyncTask) -> bool:
     """Execute a single rsync task."""

@@ -8,8 +8,10 @@ import os
 import shlex
 import shutil
 import sys
+import tomllib
+from importlib import metadata
 from pathlib import Path
-from typing import Any, List, cast
+from typing import Any, List
 
 from sync_ai_config.config import Config
 from sync_ai_config.mappings import ALL_FILE_MAPPINGS, DEFAULT_RSYNC_OPTS
@@ -83,9 +85,33 @@ def create_argument_parser() -> argparse.ArgumentParser:
   )
 
   info_group = parser.add_argument_group("information options")
-  info_group.add_argument("--version", action="version", version="%(prog)s 3.0.0")
+  info_group.add_argument("--version", action="version", version=f"%(prog)s {get_version()}")
 
   return parser
+
+
+def get_version() -> str:
+  """Return the package version from metadata or pyproject.toml."""
+  try:
+    return metadata.version("sync-ai-agent-config")
+  except metadata.PackageNotFoundError:
+    return _read_version_from_pyproject() or "0.0.0"
+
+
+def _read_version_from_pyproject() -> str | None:
+  """Read the version from pyproject.toml when metadata is unavailable."""
+  try:
+    pyproject_path = Path(__file__).resolve().parents[2] / "pyproject.toml"
+    if not pyproject_path.exists():
+      return None
+    data = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
+    project = data.get("project", {})
+    version = project.get("version")
+    if isinstance(version, str) and version:
+      return version
+  except Exception:
+    return None
+  return None
 
 
 def config_from_args(args: argparse.Namespace) -> Config:
@@ -101,11 +127,9 @@ def config_from_args(args: argparse.Namespace) -> Config:
     raise ValueError("Remote host must be configured")
 
   rsync_raw: Any = getattr(args, "rsync_opts", None)
-  rsync_opts: List[str] = []
-  if isinstance(rsync_raw, str):
-    rsync_opts = shlex.split(rsync_raw)
-  elif isinstance(rsync_raw, list):
-    rsync_opts = [str(item) for item in cast(List[Any], rsync_raw)]
+  if not isinstance(rsync_raw, str):
+    rsync_raw = str(rsync_raw) if rsync_raw is not None else ""
+  rsync_opts: List[str] = shlex.split(rsync_raw)
 
   return Config(
     remote_user=remote_user,
@@ -133,14 +157,12 @@ def main() -> int:
     config = config_from_args(args)
   except ValueError as exc:
     parser.error(str(exc))
-    return 1
 
   logger.info("AI Config Sync")
   logger.debug("Configuration: %s", config)
 
   if not args.operation:
     parser.error("Operation (push/pull) is required")
-    return 1
 
   task_builder = TaskBuilder(config)
   task_executor = TaskExecutor(config)
@@ -154,7 +176,9 @@ def main() -> int:
   logger.debug("Built Tasks: %s", tasks)
 
   logger.info("Starting %s operation", args.operation.value)
-  task_executor.execute_tasks(tasks)
+  all_succeeded = task_executor.execute_tasks(tasks)
+  if not all_succeeded:
+    return 1
 
   return 0
 

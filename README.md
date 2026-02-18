@@ -6,7 +6,7 @@ It uses `rsync` under the hood.
 
 ## Prerequisites
 
-- `rsync`
+- `rsync` (>= 3.2.3, for `--mkpath` support)
 - [uv](https://docs.astral.sh/uv/)
 - [just](https://github.com/casey/just) (for development)
 
