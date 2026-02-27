@@ -297,7 +297,7 @@ ALL_FILE_MAPPINGS: List[FileMapping] = [
     # ),
 ]
 # Default rsync options
-DEFAULT_RSYNC_OPTS = '-avz --update --delete --human-readable --mkpath'
+DEFAULT_RSYNC_OPTS = '-avzL --update --delete --human-readable --mkpath'
 ### Core Logic ###
 
 

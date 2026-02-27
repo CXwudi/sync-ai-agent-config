@@ -8,7 +8,7 @@ from typing import List
 from sync_ai_config.models import FileMapping, KeepMode
 
 
-DEFAULT_RSYNC_OPTS = "-avz --update --delete --human-readable --mkpath"
+DEFAULT_RSYNC_OPTS = "-avzL --update --delete --human-readable --mkpath"
 
 ALL_FILE_MAPPINGS: List[FileMapping] = [
   # Claude Code
