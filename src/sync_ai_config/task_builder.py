@@ -229,7 +229,9 @@ class TaskBuilder:
     Returns:
       Remote path string in format user@host:path.
     """
-    base_remote_relative_path = custom_relative_path if custom_relative_path else relative_path
+    base_remote_relative_path = (
+      custom_relative_path if custom_relative_path else relative_path
+    )
     return f"{self.config.remote_url}:{self.config.remote_base_dir / base_remote_relative_path}"
 
   def _build_suffix_path(self, orig_path: Path, suffix: str) -> Path:

@@ -21,7 +21,9 @@ from sync_ai_config.task_builder import TaskBuilder
 from sync_ai_config.task_executor import TaskExecutor
 
 
-LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s"
+LOG_FORMAT = (
+  "%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s"
+)
 logging.basicConfig(
   format=LOG_FORMAT,
   handlers=[logging.StreamHandler(sys.stdout)],
@@ -103,7 +105,9 @@ def create_argument_parser() -> argparse.ArgumentParser:
   )
 
   info_group = parser.add_argument_group("information options")
-  info_group.add_argument("--version", action="version", version=f"%(prog)s {get_version()}")
+  info_group.add_argument(
+    "--version", action="version", version=f"%(prog)s {get_version()}"
+  )
 
   return parser
 
@@ -144,7 +148,9 @@ def config_from_args(args: CliArgs) -> Config:
   """Build a Config from CLI arguments with environment variable fallbacks."""
   remote_user = args.remote_user or os.getenv("SYNC_USER")
   remote_host = args.remote_host or os.getenv("SYNC_HOST")
-  remote_base_dir = args.remote_dir or os.getenv("SYNC_DIR", "~/sync-files/ai-agents-related")
+  remote_base_dir = args.remote_dir or os.getenv(
+    "SYNC_DIR", "~/sync-files/ai-agents-related"
+  )
   windows_user = args.windows_user or os.getenv("WIN_USER")
 
   if not remote_user:
@@ -173,7 +179,9 @@ def main() -> int:
   logging.getLogger().setLevel(numeric_level)
 
   if not shutil.which("rsync"):
-    logger.critical("'rsync' command not found. Please install rsync and ensure it is in your PATH.")
+    logger.critical(
+      "'rsync' command not found. Please install rsync and ensure it is in your PATH."
+    )
     return 1
 
   try:

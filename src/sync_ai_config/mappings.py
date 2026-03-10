@@ -10,8 +10,7 @@ from sync_ai_config.models import FileMapping, KeepMode
 
 DEFAULT_RSYNC_OPTS = "-avzL --update --delete --human-readable --mkpath"
 
-ALL_FILE_MAPPINGS: List[FileMapping] = [
-  # Common for Agents
+COMMON_AGENT_FILE_MAPPINGS: List[FileMapping] = [
   FileMapping(
     relative_path=Path(".agents/skills/"),
     windows_relative_path=None,
@@ -20,35 +19,36 @@ ALL_FILE_MAPPINGS: List[FileMapping] = [
     is_directory=True,
     description="Shared agent skills",
   ),
+]
 
-  # Claude Code
+CLAUDE_CODE_FILE_MAPPINGS: List[FileMapping] = [
   FileMapping(
     relative_path=Path(".claude.json"),
     windows_relative_path=None,
     remote_relative_path=None,
     keep_mode=KeepMode.KEEP_BOTH,
-    description="Claude config",
+    description="Claude Code config",
   ),
   FileMapping(
     relative_path=Path(".claude/settings.json"),
     windows_relative_path=None,
     remote_relative_path=None,
     keep_mode=KeepMode.PREFER_LINUX,
-    description="Claude settings file",
+    description="Claude Code settings file",
   ),
   FileMapping(
     relative_path=Path(".claude/config.json"),
     windows_relative_path=None,
     remote_relative_path=None,
     keep_mode=KeepMode.PREFER_LINUX,
-    description="Claude config.json file",
+    description="Claude Code config.json file",
   ),
   FileMapping(
     relative_path=Path(".claude/CLAUDE.md"),
     windows_relative_path=None,
     remote_relative_path=None,
     keep_mode=KeepMode.PREFER_LINUX,
-    description="Claude prompt file",
+    description="Claude Code prompt file",
   ),
   FileMapping(
     relative_path=Path(".claude/agents/"),
@@ -56,7 +56,7 @@ ALL_FILE_MAPPINGS: List[FileMapping] = [
     remote_relative_path=None,
     keep_mode=KeepMode.PREFER_LINUX,
     is_directory=True,
-    description="Claude subagents",
+    description="Claude Code subagents",
   ),
   FileMapping(
     relative_path=Path(".claude/skills/"),
@@ -64,56 +64,59 @@ ALL_FILE_MAPPINGS: List[FileMapping] = [
     remote_relative_path=None,
     keep_mode=KeepMode.PREFER_LINUX,
     is_directory=True,
-    description="Claude skills",
+    description="Claude Code skills",
   ),
+]
 
-  # Gemini CLI
+GEMINI_CLI_FILE_MAPPINGS: List[FileMapping] = [
   FileMapping(
     relative_path=Path(".gemini/settings.json"),
     windows_relative_path=None,
     remote_relative_path=None,
     keep_mode=KeepMode.PREFER_LINUX,
-    description="Gemini settings",
+    description="Gemini CLI settings",
   ),
   FileMapping(
     relative_path=Path(".gemini/AGENTS.md"),
     windows_relative_path=None,
     remote_relative_path=None,
     keep_mode=KeepMode.PREFER_LINUX,
-    description="Gemini AGENTS prompt file",
+    description="Gemini CLI AGENTS prompt file",
   ),
   FileMapping(
     relative_path=Path(".gemini/GEMINI.md"),
     windows_relative_path=None,
     remote_relative_path=None,
     keep_mode=KeepMode.PREFER_LINUX,
-    description="Gemini legacy prompt file",
+    description="Gemini CLI legacy prompt file",
   ),
+]
 
-  # Codex
+CODEX_CLI_FILE_MAPPINGS: List[FileMapping] = [
   FileMapping(
     relative_path=Path(".codex/config.toml"),
     windows_relative_path=None,
     remote_relative_path=None,
     keep_mode=KeepMode.PREFER_LINUX,
-    description="Codex config",
+    description="Codex CLI config",
   ),
   FileMapping(
     relative_path=Path(".codex/auth.json"),
     windows_relative_path=None,
     remote_relative_path=None,
     keep_mode=KeepMode.PREFER_LINUX,
-    description="Codex auth",
+    description="Codex CLI auth",
   ),
   FileMapping(
     relative_path=Path(".codex/AGENTS.md"),
     windows_relative_path=None,
     remote_relative_path=None,
     keep_mode=KeepMode.PREFER_LINUX,
-    description="Codex prompt file",
+    description="Codex CLI prompt file",
   ),
+]
 
-  # OpenCode
+OPENCODE_FILE_MAPPINGS: List[FileMapping] = [
   FileMapping(
     relative_path=Path(".config/opencode/opencode.json"),
     windows_relative_path=None,
@@ -174,8 +177,9 @@ ALL_FILE_MAPPINGS: List[FileMapping] = [
     keep_mode=KeepMode.PREFER_LINUX,
     description="OpenCode auth credentials",
   ),
+]
 
-  # Cline
+CLINE_FILE_MAPPINGS: List[FileMapping] = [
   FileMapping(
     relative_path=Path(
       ".vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"
@@ -196,4 +200,14 @@ ALL_FILE_MAPPINGS: List[FileMapping] = [
   #   is_directory=True,
   #   description="Cline rules",
   # ),
+]
+
+
+ALL_FILE_MAPPINGS: List[FileMapping] = [
+  *COMMON_AGENT_FILE_MAPPINGS,
+  *CLAUDE_CODE_FILE_MAPPINGS,
+  *GEMINI_CLI_FILE_MAPPINGS,
+  *CODEX_CLI_FILE_MAPPINGS,
+  *OPENCODE_FILE_MAPPINGS,
+  *CLINE_FILE_MAPPINGS,
 ]

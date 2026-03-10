@@ -36,13 +36,13 @@ class TaskExecutor:
     dest = str(task.dest)
 
     if task.is_directory:
-      if not src.endswith('/'):
-        src += '/'
-      if not dest.endswith('/'):
-        dest += '/'
+      if not src.endswith("/"):
+        src += "/"
+      if not dest.endswith("/"):
+        dest += "/"
 
-    cmd = ['rsync', *self.config.rsync_opts, src, dest]
-    logger.info("Executing for %s:\n%s", task.description, ' '.join(cmd))
+    cmd = ["rsync", *self.config.rsync_opts, src, dest]
+    logger.info("Executing for %s:\n%s", task.description, " ".join(cmd))
 
     if self.config.dry_run:
       return True
