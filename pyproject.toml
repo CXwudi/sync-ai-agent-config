@@ -15,8 +15,12 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/sync_ai_config"]
 
-[tool.ty]
-python-version = "3.11"
+[tool.ruff]
+indent-width = 2
+
+[tool.ruff.lint]
+ignore = ["E111", "E114", "E117"]
+
 
 [dependency-groups]
 dev = [
