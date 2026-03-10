@@ -11,6 +11,16 @@ from sync_ai_config.models import FileMapping, KeepMode
 DEFAULT_RSYNC_OPTS = "-avzL --update --delete --human-readable --mkpath"
 
 ALL_FILE_MAPPINGS: List[FileMapping] = [
+  # Common for Agents
+  FileMapping(
+    relative_path=Path(".agents/skills/"),
+    windows_relative_path=None,
+    remote_relative_path=None,
+    keep_mode=KeepMode.PREFER_LINUX,
+    is_directory=True,
+    description="Shared agent skills",
+  ),
+
   # Claude Code
   FileMapping(
     relative_path=Path(".claude.json"),
@@ -66,19 +76,18 @@ ALL_FILE_MAPPINGS: List[FileMapping] = [
     description="Gemini settings",
   ),
   FileMapping(
+    relative_path=Path(".gemini/AGENTS.md"),
+    windows_relative_path=None,
+    remote_relative_path=None,
+    keep_mode=KeepMode.PREFER_LINUX,
+    description="Gemini AGENTS prompt file",
+  ),
+  FileMapping(
     relative_path=Path(".gemini/GEMINI.md"),
     windows_relative_path=None,
     remote_relative_path=None,
     keep_mode=KeepMode.PREFER_LINUX,
-    description="Gemini prompt file",
-  ),
-  FileMapping(
-    relative_path=Path(".gemini/skills/"),
-    windows_relative_path=None,
-    remote_relative_path=None,
-    keep_mode=KeepMode.PREFER_LINUX,
-    is_directory=True,
-    description="Gemini skills",
+    description="Gemini legacy prompt file",
   ),
 
   # Codex
@@ -102,14 +111,6 @@ ALL_FILE_MAPPINGS: List[FileMapping] = [
     remote_relative_path=None,
     keep_mode=KeepMode.PREFER_LINUX,
     description="Codex prompt file",
-  ),
-  FileMapping(
-    relative_path=Path(".codex/skills/"),
-    windows_relative_path=None,
-    remote_relative_path=None,
-    keep_mode=KeepMode.PREFER_LINUX,
-    is_directory=True,
-    description="Codex skills",
   ),
 
   # OpenCode

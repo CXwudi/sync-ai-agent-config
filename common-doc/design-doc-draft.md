@@ -1,22 +1,41 @@
 # Draft Design Document
 
-This program is a command-line utility to synchronize AI agent configuration files between a local machine (Linux/WSL and Windows) and a remote server. It supports push and pull operations for Claude Code and Gemini CLI configurations.
+This program is a command-line utility to synchronize AI agent configuration
+files between a local machine (Linux/WSL and Windows) and a remote server. It
+supports push and pull operations for Claude Code, Gemini CLI, Codex,
+OpenCode, and Cline configurations.
 
-The script is designed to be run from a Linux environment (typically via WSL). To backup configurations from a Windows machine, specify the Windows username. Then, the script accesses the Windows files via the `/mnt/c/` path from WSL.
+The script is designed to be run from a Linux environment (typically via WSL).
+To backup configurations from a Windows machine, specify the Windows username.
+Then, the script accesses the Windows files via the `/mnt/c/` path from WSL.
 
-## Key operations and logic:
+## Key operations and logic
 
-The program is a CLI utility with two main subcommands: `push` and `pull`. It includes options for specifying remote user, host, and Windows user
+The program is a CLI utility with two main subcommands: `push` and `pull`. It
+includes options for specifying remote user, host, and Windows user.
 
 Only when the Windows user is specified, the Windows-specific operations are performed.
 
 **push**:
 
 - Copies configuration files from the local machine to the remote server.
-- For some configuration files, the script first copies the versions from the Windows user's directory to the Linux home directory. Then pushed to the remote server. This ensures the Windows version is the source of truth.
+- For some configuration files, the script first copies the versions from the
+  Windows user's directory to the Linux home directory and then pushes them to
+  the remote server. This ensures the Windows version is the source of truth.
+- The script syncs the shared `~/.agents/skills/` directory for agents that
+  use the common skills location, while Claude Code keeps syncing its
+  dedicated `~/.claude/skills/` directory.
+- The script executes all generated `rsync` commands even if some fail. Any
+  non-zero `rsync` exit code still causes the overall command to fail.
 - The script itself is also pushed to the remote server for easy access.
 
+<!-- markdownlint-disable MD013 -->
+
 ```sh
+# Common for Agents
+rsync -avzL ~/.agents/skills/ /mnt/c/Users/{WIN_USER}/.agents/skills/
+rsync -avzL ~/.agents/skills/ {USER}@{HOST}:~/sync-files/ai-agents-related/.agents/skills/
+
 # Claude Code
 rsync -avzL ~/.claude.json {USER}@{HOST}:~/sync-files/ai-agents-related/.claude.linux.json
 rsync -avzL /mnt/c/Users/{WIN_USER}/.claude.json {USER}@{HOST}:~/sync-files/ai-agents-related/.claude.windows.json
@@ -37,11 +56,11 @@ rsync -avzL ~/.claude/skills/ {USER}@{HOST}:~/sync-files/ai-agents-related/.clau
 rsync -avzL ~/.gemini/settings.json {USER}@{HOST}:~/sync-files/ai-agents-related/.gemini/settings.linux.json
 rsync -avzL /mnt/c/Users/{WIN_USER}/.gemini/settings.json {USER}@{HOST}:~/sync-files/ai-agents-related/.gemini/settings.windows.json
 
+rsync -avzL /mnt/c/Users/{WIN_USER}/.gemini/AGENTS.md ~/.gemini/AGENTS.md
+rsync -avzL ~/.gemini/AGENTS.md {USER}@{HOST}:~/sync-files/ai-agents-related/.gemini/AGENTS.md
+
 rsync -avzL /mnt/c/Users/{WIN_USER}/.gemini/GEMINI.md ~/.gemini/GEMINI.md
 rsync -avzL ~/.gemini/GEMINI.md {USER}@{HOST}:~/sync-files/ai-agents-related/.gemini/GEMINI.md
-
-rsync -avzL ~/.gemini/skills/ /mnt/c/Users/{WIN_USER}/.gemini/skills/
-rsync -avzL ~/.gemini/skills/ {USER}@{HOST}:~/sync-files/ai-agents-related/.gemini/skills/
 
 # Codex
 rsync -avzL ~/.codex/config.toml {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/config.linux.toml
@@ -52,9 +71,6 @@ rsync -avzL ~/.codex/auth.json {USER}@{HOST}:~/sync-files/ai-agents-related/.cod
 
 rsync -avzL /mnt/c/Users/{WIN_USER}/.codex/AGENTS.md ~/.codex/AGENTS.md
 rsync -avzL ~/.codex/AGENTS.md {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/AGENTS.md
-
-rsync -avzL ~/.codex/skills/ /mnt/c/Users/{WIN_USER}/.codex/skills/
-rsync -avzL ~/.codex/skills/ {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/skills/
 
 # OpenCode
 rsync -avzL ~/.config/opencode/opencode.json /mnt/c/Users/{WIN_USER}/.config/opencode/opencode.json
@@ -89,42 +105,51 @@ rsync -avzL /mnt/c/Users/{WIN_USER}/Documents/Cline/Rules/ ~/Cline/Rules/
 rsync -avzL ~/Cline/Rules/ {USER}@{HOST}:~/sync-files/ai-agents-related/Cline/Rules/
 ```
 
+<!-- markdownlint-enable MD013 -->
+
 **pull**:
 
 - Copies configuration files from the remote server to the local machine.
-- Copies to both the Linux and Windows directories, ensuring both environments are synchronized.
+- Copies to both the Linux and Windows directories, ensuring both
+  environments are synchronized.
+
+<!-- markdownlint-disable MD013 -->
 
 ```sh
+# Common for Agents
+rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.agents/skills/ ~/.agents/skills/
+rsync -avzL ~/.agents/skills/ /mnt/c/Users/{WIN_USER}/.agents/skills/
+
 # Claude Code
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.claude.linux.json ~/.claude.json
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.claude/CLAUDE.md ~/.claude/CLAUDE.md
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.claude/agents/ ~/.claude/agents/
+rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.claude/skills/ ~/.claude/skills/
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.claude/settings.json ~/.claude/settings.json
 
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.claude.windows.json /mnt/c/Users/{WIN_USER}/.claude.json
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.claude/CLAUDE.md /mnt/c/Users/{WIN_USER}/.claude/CLAUDE.md
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.claude/agents/ /mnt/c/Users/{WIN_USER}/.claude/agents/
+rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.claude/skills/ /mnt/c/Users/{WIN_USER}/.claude/skills/
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.claude/settings.json /mnt/c/Users/{WIN_USER}/.claude/settings.json
 
 # Gemini CLI
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.gemini/settings.linux.json ~/.gemini/settings.json
+rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.gemini/AGENTS.md ~/.gemini/AGENTS.md
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.gemini/GEMINI.md ~/.gemini/GEMINI.md
-rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.gemini/skills/ ~/.gemini/skills/
 
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.gemini/settings.windows.json /mnt/c/Users/{WIN_USER}/.gemini/settings.json
+rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.gemini/AGENTS.md /mnt/c/Users/{WIN_USER}/.gemini/AGENTS.md
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.gemini/GEMINI.md /mnt/c/Users/{WIN_USER}/.gemini/GEMINI.md
-rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.gemini/skills/ /mnt/c/Users/{WIN_USER}/.gemini/skills/
 
 # Codex
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/config.linux.toml ~/.codex/config.toml
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/auth.json ~/.codex/auth.json
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/AGENTS.md ~/.codex/AGENTS.md
-rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/skills/ ~/.codex/skills/
 
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/config.windows.toml /mnt/c/Users/{WIN_USER}/.codex/config.toml
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/auth.json /mnt/c/Users/{WIN_USER}/.codex/auth.json
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/AGENTS.md /mnt/c/Users/{WIN_USER}/.codex/AGENTS.md
-rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/skills/ /mnt/c/Users/{WIN_USER}/.codex/skills/
 
 # OpenCode
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/opencode.json ~/.config/opencode/opencode.json
@@ -153,6 +178,9 @@ rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/Cline/Rules/ /mnt/c/Use
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.windows.json /mnt/c/Users/{WIN_USER}/AppData/Roaming/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json
 ```
 
+<!-- markdownlint-enable MD013 -->
+
 ## Others
 
-The CLI contains one option, `--rsync-opts`, to pass custom options to rsync. By default, it uses `-avzL --update --delete --human-readable --mkpath`.
+The CLI contains one option, `--rsync-opts`, to pass custom options to rsync.
+By default, it uses `-avzL --update --delete --human-readable --mkpath`.
