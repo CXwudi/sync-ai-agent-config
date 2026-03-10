@@ -9,9 +9,10 @@ import shlex
 import shutil
 import sys
 import tomllib
+from dataclasses import dataclass
 from importlib import metadata
 from pathlib import Path
-from typing import Any, List
+from typing import Literal, Sequence
 
 from sync_ai_config.config import Config
 from sync_ai_config.mappings import ALL_FILE_MAPPINGS, DEFAULT_RSYNC_OPTS
@@ -26,6 +27,23 @@ logging.basicConfig(
   handlers=[logging.StreamHandler(sys.stdout)],
 )
 logger = logging.getLogger(__name__)
+
+LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR"]
+LOG_LEVELS: tuple[LogLevel, ...] = ("DEBUG", "INFO", "WARNING", "ERROR")
+
+
+@dataclass
+class CliArgs(argparse.Namespace):
+  """Typed namespace for parsed CLI arguments."""
+
+  operation: Operation | None = None
+  remote_user: str | None = None
+  remote_host: str | None = None
+  remote_dir: str | None = None
+  windows_user: str | None = None
+  rsync_opts: str = DEFAULT_RSYNC_OPTS
+  log_level: LogLevel = "INFO"
+  dry_run: bool = False
 
 
 def create_argument_parser() -> argparse.ArgumentParser:
@@ -74,7 +92,7 @@ def create_argument_parser() -> argparse.ArgumentParser:
   )
   op_group.add_argument(
     "--log-level",
-    choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+    choices=LOG_LEVELS,
     default="INFO",
     help="Set logging level (default: INFO)",
   )
@@ -88,6 +106,14 @@ def create_argument_parser() -> argparse.ArgumentParser:
   info_group.add_argument("--version", action="version", version=f"%(prog)s {get_version()}")
 
   return parser
+
+
+def parse_cli_args(
+  parser: argparse.ArgumentParser,
+  argv: Sequence[str] | None = None,
+) -> CliArgs:
+  """Parse command-line arguments into a typed namespace."""
+  return parser.parse_args(args=argv, namespace=CliArgs())
 
 
 def get_version() -> str:
@@ -114,7 +140,7 @@ def _read_version_from_pyproject() -> str | None:
   return None
 
 
-def config_from_args(args: argparse.Namespace) -> Config:
+def config_from_args(args: CliArgs) -> Config:
   """Build a Config from CLI arguments with environment variable fallbacks."""
   remote_user = args.remote_user or os.getenv("SYNC_USER")
   remote_host = args.remote_host or os.getenv("SYNC_HOST")
@@ -126,10 +152,7 @@ def config_from_args(args: argparse.Namespace) -> Config:
   if not remote_host:
     raise ValueError("Remote host must be configured")
 
-  rsync_raw: Any = getattr(args, "rsync_opts", None)
-  if not isinstance(rsync_raw, str):
-    rsync_raw = str(rsync_raw) if rsync_raw is not None else ""
-  rsync_opts: List[str] = shlex.split(rsync_raw)
+  rsync_opts = shlex.split(args.rsync_opts)
 
   return Config(
     remote_user=remote_user,
@@ -144,7 +167,7 @@ def config_from_args(args: argparse.Namespace) -> Config:
 def main() -> int:
   """Main entrypoint for the CLI."""
   parser = create_argument_parser()
-  args = parser.parse_args()
+  args = parse_cli_args(parser)
 
   numeric_level = getattr(logging, args.log_level.upper(), logging.INFO)
   logging.getLogger().setLevel(numeric_level)
@@ -168,7 +191,7 @@ def main() -> int:
   task_executor = TaskExecutor(config)
 
   logger.info("Building tasks for %s operation", args.operation.value)
-  tasks: List[RsyncTask] = (
+  tasks: list[RsyncTask] = (
     task_builder.build_push_tasks(ALL_FILE_MAPPINGS)
     if args.operation == Operation.PUSH
     else task_builder.build_pull_tasks(ALL_FILE_MAPPINGS)

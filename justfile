@@ -12,7 +12,7 @@ lint:
 
 # Format
 format:
-  uv run black .
+  uv run ruff format .
 
 # Build executable
 build-exe:

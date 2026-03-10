@@ -50,7 +50,7 @@ uv sync
 just test       # Run tests
 just typecheck  # Type check with ty
 just lint       # Lint with ruff
-just format     # Format with black
+just format     # Format with ruff
 just build-exe  # Build a single-file executable
 ```
 

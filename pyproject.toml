@@ -24,7 +24,6 @@ ignore = ["E111", "E114", "E117"]
 
 [dependency-groups]
 dev = [
-  "black",
   "pyinstaller",
   "pytest",
   "ruff",
