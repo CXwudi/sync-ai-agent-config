@@ -30,7 +30,7 @@ def render_tasks(tasks: list[RsyncTask]) -> str:
 
 
 def test_build_push_tasks_matches_shared_skills_and_gemini_files() -> None:
-  """Push tasks should include the new shared/Gemini paths and omit removed ones."""
+  """Push tasks should include the shared agent and Codex plugin paths."""
   tasks = TaskBuilder(build_config()).build_push_tasks(ALL_FILE_MAPPINGS)
   rendered = render_tasks(tasks)
 
@@ -38,12 +38,13 @@ def test_build_push_tasks_matches_shared_skills_and_gemini_files() -> None:
   assert ".claude/skills" in rendered
   assert ".gemini/AGENTS.md" in rendered
   assert ".gemini/GEMINI.md" in rendered
+  assert ".codex/plugins" in rendered
   assert ".gemini/skills" not in rendered
   assert ".codex/skills" not in rendered
 
 
 def test_build_pull_tasks_matches_shared_skills_and_gemini_files() -> None:
-  """Pull tasks should mirror the revised mapping set."""
+  """Pull tasks should mirror the shared agent and Codex plugin paths."""
   tasks = TaskBuilder(build_config()).build_pull_tasks(ALL_FILE_MAPPINGS)
   rendered = render_tasks(tasks)
 
@@ -51,12 +52,13 @@ def test_build_pull_tasks_matches_shared_skills_and_gemini_files() -> None:
   assert ".claude/skills" in rendered
   assert ".gemini/AGENTS.md" in rendered
   assert ".gemini/GEMINI.md" in rendered
+  assert ".codex/plugins" in rendered
   assert ".gemini/skills" not in rendered
   assert ".codex/skills" not in rendered
 
 
 def test_dry_run_logs_revised_rsync_commands(caplog) -> None:
-  """Dry-run logging should expose the updated command set without executing rsync."""
+  """Dry-run logging should expose the shared agent and Codex plugin commands."""
   config = build_config(dry_run=True)
   tasks = TaskBuilder(config).build_push_tasks(ALL_FILE_MAPPINGS)
   executor = TaskExecutor(config)
@@ -68,5 +70,6 @@ def test_dry_run_logs_revised_rsync_commands(caplog) -> None:
   assert ".claude/skills/" in caplog.text
   assert ".gemini/AGENTS.md" in caplog.text
   assert ".gemini/GEMINI.md" in caplog.text
+  assert ".codex/plugins/" in caplog.text
   assert ".gemini/skills/" not in caplog.text
   assert ".codex/skills/" not in caplog.text

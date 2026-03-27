@@ -72,6 +72,9 @@ rsync -avzL ~/.codex/auth.json {USER}@{HOST}:~/sync-files/ai-agents-related/.cod
 rsync -avzL /mnt/c/Users/{WIN_USER}/.codex/AGENTS.md ~/.codex/AGENTS.md
 rsync -avzL ~/.codex/AGENTS.md {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/AGENTS.md
 
+rsync -avzL ~/.codex/plugins/ /mnt/c/Users/{WIN_USER}/.codex/plugins/
+rsync -avzL ~/.codex/plugins/ {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/plugins/
+
 # OpenCode
 rsync -avzL ~/.config/opencode/opencode.json /mnt/c/Users/{WIN_USER}/.config/opencode/opencode.json
 rsync -avzL ~/.config/opencode/opencode.json {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/opencode.json
@@ -146,10 +149,12 @@ rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.gemini/GEMINI.md /mnt/
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/config.linux.toml ~/.codex/config.toml
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/auth.json ~/.codex/auth.json
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/AGENTS.md ~/.codex/AGENTS.md
+rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/plugins/ ~/.codex/plugins/
 
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/config.windows.toml /mnt/c/Users/{WIN_USER}/.codex/config.toml
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/auth.json /mnt/c/Users/{WIN_USER}/.codex/auth.json
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/AGENTS.md /mnt/c/Users/{WIN_USER}/.codex/AGENTS.md
+rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/plugins/ /mnt/c/Users/{WIN_USER}/.codex/plugins/
 
 # OpenCode
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/opencode.json ~/.config/opencode/opencode.json

@@ -114,6 +114,14 @@ CODEX_CLI_FILE_MAPPINGS: List[FileMapping] = [
     keep_mode=KeepMode.PREFER_LINUX,
     description="Codex CLI prompt file",
   ),
+  FileMapping(
+    relative_path=Path(".codex/plugins/"),
+    windows_relative_path=None,
+    remote_relative_path=None,
+    keep_mode=KeepMode.PREFER_LINUX,
+    is_directory=True,
+    description="Codex CLI plugins",
+  ),
 ]
 
 OPENCODE_FILE_MAPPINGS: List[FileMapping] = [
