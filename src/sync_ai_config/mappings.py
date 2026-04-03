@@ -124,6 +124,30 @@ CODEX_CLI_FILE_MAPPINGS: List[FileMapping] = [
   ),
 ]
 
+PI_CODING_AGENT_FILE_MAPPINGS: List[FileMapping] = [
+  FileMapping(
+    relative_path=Path(".pi/agent/settings.json"),
+    windows_relative_path=None,
+    remote_relative_path=None,
+    keep_mode=KeepMode.PREFER_LINUX,
+    description="Pi Coding Agent settings",
+  ),
+  FileMapping(
+    relative_path=Path(".pi/agent/auth.json"),
+    windows_relative_path=None,
+    remote_relative_path=None,
+    keep_mode=KeepMode.PREFER_LINUX,
+    description="Pi Coding Agent auth",
+  ),
+  FileMapping(
+    relative_path=Path(".pi/agent/AGENTS.md"),
+    windows_relative_path=None,
+    remote_relative_path=None,
+    keep_mode=KeepMode.PREFER_LINUX,
+    description="Pi Coding Agent prompt file",
+  ),
+]
+
 OPENCODE_FILE_MAPPINGS: List[FileMapping] = [
   FileMapping(
     relative_path=Path(".config/opencode/opencode.json"),
@@ -216,6 +240,7 @@ ALL_FILE_MAPPINGS: List[FileMapping] = [
   *CLAUDE_CODE_FILE_MAPPINGS,
   *GEMINI_CLI_FILE_MAPPINGS,
   *CODEX_CLI_FILE_MAPPINGS,
+  *PI_CODING_AGENT_FILE_MAPPINGS,
   *OPENCODE_FILE_MAPPINGS,
   *CLINE_FILE_MAPPINGS,
 ]

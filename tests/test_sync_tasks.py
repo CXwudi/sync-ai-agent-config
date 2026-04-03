@@ -29,8 +29,13 @@ def render_tasks(tasks: list[RsyncTask]) -> str:
   return "\n".join(f"{task.description}|{task.src}|{task.dest}" for task in tasks)
 
 
-def test_build_push_tasks_matches_shared_skills_and_gemini_files() -> None:
-  """Push tasks should include the shared agent and Codex plugin paths."""
+def assert_before(text: str, first: str, second: str) -> None:
+  """Assert that the first substring appears before the second substring."""
+  assert text.index(first) < text.index(second)
+
+
+def test_build_push_tasks_matches_supported_agent_files() -> None:
+  """Push tasks should include supported agent files in the expected order."""
   tasks = TaskBuilder(build_config()).build_push_tasks(ALL_FILE_MAPPINGS)
   rendered = render_tasks(tasks)
 
@@ -39,12 +44,20 @@ def test_build_push_tasks_matches_shared_skills_and_gemini_files() -> None:
   assert ".gemini/AGENTS.md" in rendered
   assert ".gemini/GEMINI.md" in rendered
   assert ".codex/plugins" in rendered
+  assert ".pi/agent/settings.json" in rendered
+  assert ".pi/agent/auth.json" in rendered
+  assert ".pi/agent/AGENTS.md" in rendered
+  assert_before(rendered, ".pi/agent/settings.json", ".config/opencode/opencode.json")
   assert ".gemini/skills" not in rendered
   assert ".codex/skills" not in rendered
+  assert ".pi/agent/prompts" not in rendered
+  assert ".pi/agent/skills" not in rendered
+  assert ".pi/agent/sessions" not in rendered
+  assert ".pi/agent/bin" not in rendered
 
 
-def test_build_pull_tasks_matches_shared_skills_and_gemini_files() -> None:
-  """Pull tasks should mirror the shared agent and Codex plugin paths."""
+def test_build_pull_tasks_matches_supported_agent_files() -> None:
+  """Pull tasks should mirror supported agent files in the expected order."""
   tasks = TaskBuilder(build_config()).build_pull_tasks(ALL_FILE_MAPPINGS)
   rendered = render_tasks(tasks)
 
@@ -53,12 +66,20 @@ def test_build_pull_tasks_matches_shared_skills_and_gemini_files() -> None:
   assert ".gemini/AGENTS.md" in rendered
   assert ".gemini/GEMINI.md" in rendered
   assert ".codex/plugins" in rendered
+  assert ".pi/agent/settings.json" in rendered
+  assert ".pi/agent/auth.json" in rendered
+  assert ".pi/agent/AGENTS.md" in rendered
+  assert_before(rendered, ".pi/agent/settings.json", ".config/opencode/opencode.json")
   assert ".gemini/skills" not in rendered
   assert ".codex/skills" not in rendered
+  assert ".pi/agent/prompts" not in rendered
+  assert ".pi/agent/skills" not in rendered
+  assert ".pi/agent/sessions" not in rendered
+  assert ".pi/agent/bin" not in rendered
 
 
 def test_dry_run_logs_revised_rsync_commands(caplog) -> None:
-  """Dry-run logging should expose the shared agent and Codex plugin commands."""
+  """Dry-run logging should expose the supported agent sync commands."""
   config = build_config(dry_run=True)
   tasks = TaskBuilder(config).build_push_tasks(ALL_FILE_MAPPINGS)
   executor = TaskExecutor(config)
@@ -71,5 +92,17 @@ def test_dry_run_logs_revised_rsync_commands(caplog) -> None:
   assert ".gemini/AGENTS.md" in caplog.text
   assert ".gemini/GEMINI.md" in caplog.text
   assert ".codex/plugins/" in caplog.text
+  assert ".pi/agent/settings.json" in caplog.text
+  assert ".pi/agent/auth.json" in caplog.text
+  assert ".pi/agent/AGENTS.md" in caplog.text
+  assert_before(
+    caplog.text,
+    ".pi/agent/settings.json",
+    ".config/opencode/opencode.json",
+  )
   assert ".gemini/skills/" not in caplog.text
   assert ".codex/skills/" not in caplog.text
+  assert ".pi/agent/prompts/" not in caplog.text
+  assert ".pi/agent/skills/" not in caplog.text
+  assert ".pi/agent/sessions/" not in caplog.text
+  assert ".pi/agent/bin/" not in caplog.text

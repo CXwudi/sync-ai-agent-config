@@ -3,7 +3,7 @@
 This program is a command-line utility to synchronize AI agent configuration
 files between a local machine (Linux/WSL and Windows) and a remote server. It
 supports push and pull operations for Claude Code, Gemini CLI, Codex,
-OpenCode, and Cline configurations.
+Pi Coding Agent, OpenCode, and Cline configurations.
 
 The script is designed to be run from a Linux environment (typically via WSL).
 To backup configurations from a Windows machine, specify the Windows username.
@@ -74,6 +74,16 @@ rsync -avzL ~/.codex/AGENTS.md {USER}@{HOST}:~/sync-files/ai-agents-related/.cod
 
 rsync -avzL ~/.codex/plugins/ /mnt/c/Users/{WIN_USER}/.codex/plugins/
 rsync -avzL ~/.codex/plugins/ {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/plugins/
+
+# Pi Coding Agent
+rsync -avzL ~/.pi/agent/settings.json /mnt/c/Users/{WIN_USER}/.pi/agent/settings.json
+rsync -avzL ~/.pi/agent/settings.json {USER}@{HOST}:~/sync-files/ai-agents-related/.pi/agent/settings.json
+
+rsync -avzL ~/.pi/agent/auth.json /mnt/c/Users/{WIN_USER}/.pi/agent/auth.json
+rsync -avzL ~/.pi/agent/auth.json {USER}@{HOST}:~/sync-files/ai-agents-related/.pi/agent/auth.json
+
+rsync -avzL ~/.pi/agent/AGENTS.md /mnt/c/Users/{WIN_USER}/.pi/agent/AGENTS.md
+rsync -avzL ~/.pi/agent/AGENTS.md {USER}@{HOST}:~/sync-files/ai-agents-related/.pi/agent/AGENTS.md
 
 # OpenCode
 rsync -avzL ~/.config/opencode/opencode.json /mnt/c/Users/{WIN_USER}/.config/opencode/opencode.json
@@ -155,6 +165,15 @@ rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/config.windows.t
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/auth.json /mnt/c/Users/{WIN_USER}/.codex/auth.json
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/AGENTS.md /mnt/c/Users/{WIN_USER}/.codex/AGENTS.md
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/plugins/ /mnt/c/Users/{WIN_USER}/.codex/plugins/
+
+# Pi Coding Agent
+rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.pi/agent/settings.json ~/.pi/agent/settings.json
+rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.pi/agent/auth.json ~/.pi/agent/auth.json
+rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.pi/agent/AGENTS.md ~/.pi/agent/AGENTS.md
+
+rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.pi/agent/settings.json /mnt/c/Users/{WIN_USER}/.pi/agent/settings.json
+rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.pi/agent/auth.json /mnt/c/Users/{WIN_USER}/.pi/agent/auth.json
+rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.pi/agent/AGENTS.md /mnt/c/Users/{WIN_USER}/.pi/agent/AGENTS.md
 
 # OpenCode
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/opencode.json ~/.config/opencode/opencode.json
