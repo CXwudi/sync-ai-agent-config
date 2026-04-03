@@ -2,8 +2,6 @@
 
 ## Documentation-First Approach:
 
-**CRITICAL: Before starting ANY task, you MUST first check the ./common-doc/ directory for relevant guidance and documentation. This is mandatory for all tasks - no exceptions.**
-
 ### Before Starting:
 
 1. Use the ls/tree to explore ./common-doc/ directory structure
