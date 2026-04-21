@@ -126,6 +126,13 @@ CODEX_CLI_FILE_MAPPINGS: List[FileMapping] = [
 
 PI_CODING_AGENT_FILE_MAPPINGS: List[FileMapping] = [
   FileMapping(
+    relative_path=Path(".pi/agent/settings.json"),
+    windows_relative_path=None,
+    remote_relative_path=None,
+    keep_mode=KeepMode.PREFER_LINUX,
+    description="Pi Coding Agent settings",
+  ),
+  FileMapping(
     relative_path=Path(".pi/agent/auth.json"),
     windows_relative_path=None,
     remote_relative_path=None,

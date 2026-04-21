@@ -44,12 +44,12 @@ def test_build_push_tasks_matches_supported_agent_files() -> None:
   assert ".gemini/AGENTS.md" in rendered
   assert ".gemini/GEMINI.md" in rendered
   assert ".codex/plugins" in rendered
+  assert ".pi/agent/settings.json" in rendered
   assert ".pi/agent/auth.json" in rendered
   assert ".pi/agent/AGENTS.md" in rendered
-  assert_before(rendered, ".pi/agent/auth.json", ".config/opencode/opencode.json")
+  assert_before(rendered, ".pi/agent/settings.json", ".config/opencode/opencode.json")
   assert ".gemini/skills" not in rendered
   assert ".codex/skills" not in rendered
-  assert ".pi/agent/settings.json" not in rendered
   assert ".pi/agent/prompts" not in rendered
   assert ".pi/agent/skills" not in rendered
   assert ".pi/agent/sessions" not in rendered
@@ -66,12 +66,12 @@ def test_build_pull_tasks_matches_supported_agent_files() -> None:
   assert ".gemini/AGENTS.md" in rendered
   assert ".gemini/GEMINI.md" in rendered
   assert ".codex/plugins" in rendered
+  assert ".pi/agent/settings.json" in rendered
   assert ".pi/agent/auth.json" in rendered
   assert ".pi/agent/AGENTS.md" in rendered
-  assert_before(rendered, ".pi/agent/auth.json", ".config/opencode/opencode.json")
+  assert_before(rendered, ".pi/agent/settings.json", ".config/opencode/opencode.json")
   assert ".gemini/skills" not in rendered
   assert ".codex/skills" not in rendered
-  assert ".pi/agent/settings.json" not in rendered
   assert ".pi/agent/prompts" not in rendered
   assert ".pi/agent/skills" not in rendered
   assert ".pi/agent/sessions" not in rendered
@@ -92,16 +92,16 @@ def test_dry_run_logs_revised_rsync_commands(caplog) -> None:
   assert ".gemini/AGENTS.md" in caplog.text
   assert ".gemini/GEMINI.md" in caplog.text
   assert ".codex/plugins/" in caplog.text
+  assert ".pi/agent/settings.json" in caplog.text
   assert ".pi/agent/auth.json" in caplog.text
   assert ".pi/agent/AGENTS.md" in caplog.text
   assert_before(
     caplog.text,
-    ".pi/agent/auth.json",
+    ".pi/agent/settings.json",
     ".config/opencode/opencode.json",
   )
   assert ".gemini/skills/" not in caplog.text
   assert ".codex/skills/" not in caplog.text
-  assert ".pi/agent/settings.json" not in caplog.text
   assert ".pi/agent/prompts/" not in caplog.text
   assert ".pi/agent/skills/" not in caplog.text
   assert ".pi/agent/sessions/" not in caplog.text

@@ -2,8 +2,8 @@
 
 This program is a command-line utility to synchronize AI agent configuration
 files between a local machine (Linux/WSL and Windows) and a remote server. It
-supports push and pull operations for Claude Code, Gemini CLI, Codex, Pi Coding
-Agent, OpenCode, and Cline configurations.
+supports push and pull operations for Claude Code, Gemini CLI, Codex,
+Pi Coding Agent, OpenCode, and Cline configurations.
 
 The script is designed to be run from a Linux environment (typically via WSL).
 To backup configurations from a Windows machine, specify the Windows username.
@@ -14,8 +14,7 @@ Then, the script accesses the Windows files via the `/mnt/c/` path from WSL.
 The program is a CLI utility with two main subcommands: `push` and `pull`. It
 includes options for specifying remote user, host, and Windows user.
 
-Only when the Windows user is specified, the Windows-specific operations are
-performed.
+Only when the Windows user is specified, the Windows-specific operations are performed.
 
 **push**:
 
@@ -23,9 +22,9 @@ performed.
 - For some configuration files, the script first copies the versions from the
   Windows user's directory to the Linux home directory and then pushes them to
   the remote server. This ensures the Windows version is the source of truth.
-- The script syncs the shared `~/.agents/skills/` directory for agents that use
-  the common skills location, while Claude Code keeps syncing its dedicated
-  `~/.claude/skills/` directory.
+- The script syncs the shared `~/.agents/skills/` directory for agents that
+  use the common skills location, while Claude Code keeps syncing its
+  dedicated `~/.claude/skills/` directory.
 - The script executes all generated `rsync` commands even if some fail. Any
   non-zero `rsync` exit code still causes the overall command to fail.
 - The script itself is also pushed to the remote server for easy access.
@@ -77,6 +76,9 @@ rsync -avzL ~/.codex/plugins/ /mnt/c/Users/{WIN_USER}/.codex/plugins/
 rsync -avzL ~/.codex/plugins/ {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/plugins/
 
 # Pi Coding Agent
+rsync -avzL ~/.pi/agent/settings.json /mnt/c/Users/{WIN_USER}/.pi/agent/settings.json
+rsync -avzL ~/.pi/agent/settings.json {USER}@{HOST}:~/sync-files/ai-agents-related/.pi/agent/settings.json
+
 rsync -avzL ~/.pi/agent/auth.json /mnt/c/Users/{WIN_USER}/.pi/agent/auth.json
 rsync -avzL ~/.pi/agent/auth.json {USER}@{HOST}:~/sync-files/ai-agents-related/.pi/agent/auth.json
 
@@ -121,8 +123,8 @@ rsync -avzL ~/Cline/Rules/ {USER}@{HOST}:~/sync-files/ai-agents-related/Cline/Ru
 **pull**:
 
 - Copies configuration files from the remote server to the local machine.
-- Copies to both the Linux and Windows directories, ensuring both environments
-  are synchronized.
+- Copies to both the Linux and Windows directories, ensuring both
+  environments are synchronized.
 
 <!-- markdownlint-disable MD013 -->
 
@@ -165,9 +167,11 @@ rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/AGENTS.md /mnt/c
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.codex/plugins/ /mnt/c/Users/{WIN_USER}/.codex/plugins/
 
 # Pi Coding Agent
+rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.pi/agent/settings.json ~/.pi/agent/settings.json
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.pi/agent/auth.json ~/.pi/agent/auth.json
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.pi/agent/AGENTS.md ~/.pi/agent/AGENTS.md
 
+rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.pi/agent/settings.json /mnt/c/Users/{WIN_USER}/.pi/agent/settings.json
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.pi/agent/auth.json /mnt/c/Users/{WIN_USER}/.pi/agent/auth.json
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.pi/agent/AGENTS.md /mnt/c/Users/{WIN_USER}/.pi/agent/AGENTS.md
 
@@ -202,5 +206,5 @@ rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.vscode-server/data/Use
 
 ## Others
 
-The CLI contains one option, `--rsync-opts`, to pass custom options to rsync. By
-default, it uses `-avzL --update --delete --human-readable --mkpath`.
+The CLI contains one option, `--rsync-opts`, to pass custom options to rsync.
+By default, it uses `-avzL --update --delete --human-readable --mkpath`.
