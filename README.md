@@ -18,10 +18,9 @@ Set these environment variables so the tool knows where to sync:
 ```bash
 export SYNC_USER="your_remote_username"
 export SYNC_HOST="your_remote_hostname_or_ip"
-export SYNC_DIR="~/sync-files/ai-agents-related" # Optional: default is ~/sync-files/ai-agents-related
-export WIN_USER="your_windows_username" # e.g., "jane" if your windows path is /mnt/c/Users/jane
-# Optional: custom mapping config, stored in local
-export SYNC_LISTING_CONFIG="~/sync-ai-mappings.toml"
+export SYNC_DIR="~/sync-files/ai-agents-related" # default is ~/sync-files/ai-agents-related
+export WIN_USER="your_windows_username" # Optional: e.g., "jane" if your windows path is /mnt/c/Users/jane
+export SYNC_LISTING_CONFIG="~/sync-ai-mappings.toml" # Optional: file containing your custom list of files/folders to sync
 ```
 
 ## Usage
@@ -77,6 +76,9 @@ is_directory = true
 
 # Optional human-readable label used in logs.
 description = "Codex plugins"
+
+[[mappings]]
+# your next mapping and so on
 ```
 
 Then either set the `SYNC_LISTING_CONFIG` env var, or pass the path with
