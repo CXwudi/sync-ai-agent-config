@@ -8,8 +8,13 @@ import sys
 
 from rich.traceback import install as install_rich_tracebacks
 
-from sync_ai_config.cli import config_from_args, create_argument_parser, parse_cli_args
-from sync_ai_config.mapping_config import load_default_mappings
+from sync_ai_config.cli import (
+  config_from_args,
+  create_argument_parser,
+  mapping_config_path_from_args,
+  parse_cli_args,
+)
+from sync_ai_config.mapping_config import MappingConfigError, load_mappings
 from sync_ai_config.models import Operation, RsyncTask
 from sync_ai_config.task_builder import TaskBuilder
 from sync_ai_config.task_executor import TaskExecutor
@@ -52,11 +57,21 @@ def main() -> int:
   if not args.operation:
     parser.error("Operation (push/pull) is required")
 
+  mapping_config_path = mapping_config_path_from_args(args)
+  try:
+    mappings = load_mappings(mapping_config_path)
+  except MappingConfigError as exc:
+    parser.error(str(exc))
+
+  if mapping_config_path is None:
+    logger.info("Using packaged default mapping config")
+  else:
+    logger.info("Using custom mapping config file: %s", mapping_config_path)
+
   task_builder = TaskBuilder(config)
   task_executor = TaskExecutor(config)
 
   logger.info("Building tasks for %s operation", args.operation.value)
-  mappings = load_default_mappings()
   tasks: list[RsyncTask] = (
     task_builder.build_push_tasks(mappings)
     if args.operation == Operation.PUSH

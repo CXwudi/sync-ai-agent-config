@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Literal, Sequence
 
 from sync_ai_config.config import Config
+from sync_ai_config.mapping_config import SYNC_CONFIG_ENV
 from sync_ai_config.models import Operation
 
 
@@ -29,6 +30,7 @@ class CliArgs(argparse.Namespace):
   remote_host: str | None = None
   remote_dir: str | None = None
   windows_user: str | None = None
+  config: str | None = None
   rsync_opts: str = DEFAULT_RSYNC_OPTS
   log_level: LogLevel = "INFO"
   dry_run: bool = False
@@ -70,6 +72,16 @@ def create_argument_parser() -> argparse.ArgumentParser:
     "-w",
     "--windows-user",
     help="Windows username (overrides WIN_USER, optional - enables Windows file sync)",
+  )
+
+  mapping_group = parser.add_argument_group("mapping configuration")
+  mapping_group.add_argument(
+    "--config",
+    metavar="PATH",
+    help=(
+      "TOML mapping config path "
+      f"(overrides {SYNC_CONFIG_ENV} and replaces the packaged defaults)"
+    ),
   )
 
   op_group = parser.add_argument_group("operation options")
@@ -127,6 +139,18 @@ def _read_version_from_pyproject() -> str | None:
       return version
   except Exception:
     return None
+  return None
+
+
+def mapping_config_path_from_args(args: CliArgs) -> Path | None:
+  """Resolve the custom mapping config path from CLI args or environment."""
+  if args.config is not None:
+    return Path(args.config).expanduser()
+
+  env_config_path = os.getenv(SYNC_CONFIG_ENV)
+  if env_config_path:
+    return Path(env_config_path).expanduser()
+
   return None
 
 
