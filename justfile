@@ -16,4 +16,4 @@ format:
 
 # Build executable
 build-exe:
-  uv run pyinstaller src/sync_ai_config/cli.py --name sync-ai-config --onefile
+  uv run pyinstaller src/sync_ai_config/main.py --name sync-ai-config --onefile --add-data src/sync_ai_config/default_mappings.toml:sync_ai_config

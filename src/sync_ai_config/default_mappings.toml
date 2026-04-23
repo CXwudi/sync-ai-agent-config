@@ -1,0 +1,141 @@
+# Default sync file and directory mappings for sync-ai-config.
+# Custom config files use the same [[mappings]] shape.
+
+[[mappings]]
+path = ".agents/skills/"
+keep_mode = "prefer_linux"
+is_directory = true
+description = "Shared agent skills"
+
+[[mappings]]
+path = ".claude.json"
+keep_mode = "keep_both"
+description = "Claude Code config"
+
+[[mappings]]
+path = ".claude/settings.json"
+keep_mode = "prefer_linux"
+description = "Claude Code settings file"
+
+[[mappings]]
+path = ".claude/config.json"
+keep_mode = "prefer_linux"
+description = "Claude Code config.json file"
+
+[[mappings]]
+path = ".claude/CLAUDE.md"
+keep_mode = "prefer_linux"
+description = "Claude Code prompt file"
+
+[[mappings]]
+path = ".claude/agents/"
+keep_mode = "prefer_linux"
+is_directory = true
+description = "Claude Code subagents"
+
+[[mappings]]
+path = ".claude/skills/"
+keep_mode = "prefer_linux"
+is_directory = true
+description = "Claude Code skills"
+
+[[mappings]]
+path = ".gemini/settings.json"
+keep_mode = "prefer_linux"
+description = "Gemini CLI settings"
+
+[[mappings]]
+path = ".gemini/AGENTS.md"
+keep_mode = "prefer_linux"
+description = "Gemini CLI AGENTS prompt file"
+
+[[mappings]]
+path = ".gemini/GEMINI.md"
+keep_mode = "prefer_linux"
+description = "Gemini CLI legacy prompt file"
+
+[[mappings]]
+path = ".codex/config.toml"
+keep_mode = "prefer_linux"
+description = "Codex CLI config"
+
+[[mappings]]
+path = ".codex/auth.json"
+keep_mode = "prefer_linux"
+description = "Codex CLI auth"
+
+[[mappings]]
+path = ".codex/AGENTS.md"
+keep_mode = "prefer_linux"
+description = "Codex CLI prompt file"
+
+[[mappings]]
+path = ".codex/plugins/"
+keep_mode = "prefer_linux"
+is_directory = true
+description = "Codex CLI plugins"
+
+[[mappings]]
+path = ".pi/agent/settings.json"
+keep_mode = "prefer_linux"
+description = "Pi Coding Agent settings"
+
+[[mappings]]
+path = ".pi/agent/auth.json"
+keep_mode = "prefer_linux"
+description = "Pi Coding Agent auth"
+
+[[mappings]]
+path = ".pi/agent/AGENTS.md"
+keep_mode = "prefer_linux"
+description = "Pi Coding Agent prompt file"
+
+[[mappings]]
+path = ".config/opencode/opencode.json"
+keep_mode = "prefer_linux"
+description = "OpenCode main config (JSON)"
+
+[[mappings]]
+path = ".config/opencode/opencode.jsonc"
+keep_mode = "prefer_linux"
+description = "OpenCode main config (JSONC)"
+
+[[mappings]]
+path = ".config/opencode/AGENTS.md"
+keep_mode = "prefer_linux"
+description = "OpenCode prompt file"
+
+[[mappings]]
+path = ".config/opencode/prompts/"
+keep_mode = "prefer_linux"
+is_directory = true
+description = "OpenCode custom prompts"
+
+[[mappings]]
+path = ".config/opencode/agents/"
+keep_mode = "prefer_linux"
+is_directory = true
+description = "OpenCode custom agents"
+
+[[mappings]]
+path = ".config/opencode/commands/"
+keep_mode = "prefer_linux"
+is_directory = true
+description = "OpenCode custom commands"
+
+[[mappings]]
+path = ".config/opencode/plugins/"
+keep_mode = "prefer_linux"
+is_directory = true
+description = "OpenCode plugins"
+
+[[mappings]]
+path = ".local/share/opencode/auth.json"
+keep_mode = "prefer_linux"
+description = "OpenCode auth credentials"
+
+[[mappings]]
+path = ".vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"
+windows_path = "AppData/Roaming/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"
+keep_mode = "prefer_linux"
+description = "Cline MCP settings for VSCode"

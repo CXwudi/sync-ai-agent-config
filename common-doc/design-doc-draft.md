@@ -2,8 +2,13 @@
 
 This program is a command-line utility to synchronize AI agent configuration
 files between a local machine (Linux/WSL and Windows) and a remote server. It
-supports push and pull operations for Claude Code, Gemini CLI, Codex,
-Pi Coding Agent, OpenCode, and Cline configurations.
+supports push and pull operations for Claude Code, Gemini CLI, Codex, Pi Coding
+Agent, OpenCode, and Cline configurations.
+
+The sync file/folder mappings are loaded from a packaged default TOML file by
+default. Users can provide a custom TOML mapping config with `--config PATH` or
+`SYNC_LISTING_CONFIG`; a custom config replaces the packaged mapping list
+entirely.
 
 The script is designed to be run from a Linux environment (typically via WSL).
 To backup configurations from a Windows machine, specify the Windows username.
@@ -12,9 +17,17 @@ Then, the script accesses the Windows files via the `/mnt/c/` path from WSL.
 ## Key operations and logic
 
 The program is a CLI utility with two main subcommands: `push` and `pull`. It
-includes options for specifying remote user, host, and Windows user.
+includes options for specifying remote user, host, Windows user, and an optional
+custom mapping config path.
 
-Only when the Windows user is specified, the Windows-specific operations are performed.
+Only when the Windows user is specified, the Windows-specific operations are
+performed. When no custom mapping config is specified, the packaged default
+mappings are used. Custom config path precedence is `--config PATH`, then
+`SYNC_LISTING_CONFIG`, then the packaged default mapping file.
+
+The long `rsync` examples below describe the packaged default mapping config.
+Custom mapping configs can generate a different file/folder list while keeping
+the same push and pull task-generation rules.
 
 **push**:
 
@@ -22,9 +35,9 @@ Only when the Windows user is specified, the Windows-specific operations are per
 - For some configuration files, the script first copies the versions from the
   Windows user's directory to the Linux home directory and then pushes them to
   the remote server. This ensures the Windows version is the source of truth.
-- The script syncs the shared `~/.agents/skills/` directory for agents that
-  use the common skills location, while Claude Code keeps syncing its
-  dedicated `~/.claude/skills/` directory.
+- The script syncs the shared `~/.agents/skills/` directory for agents that use
+  the common skills location, while Claude Code keeps syncing its dedicated
+  `~/.claude/skills/` directory.
 - The script executes all generated `rsync` commands even if some fail. Any
   non-zero `rsync` exit code still causes the overall command to fail.
 - The script itself is also pushed to the remote server for easy access.
@@ -113,9 +126,6 @@ rsync -avzL ~/.local/share/opencode/auth.json {USER}@{HOST}:~/sync-files/ai-agen
 # Cline
 rsync -avzL ~/.vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json {USER}@{HOST}:~/sync-files/ai-agents-related/.vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.linux.json
 rsync -avzL /mnt/c/Users/{WIN_USER}/AppData/Roaming/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json {USER}@{HOST}:~/sync-files/ai-agents-related/.vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.windows.json
-
-rsync -avzL /mnt/c/Users/{WIN_USER}/Documents/Cline/Rules/ ~/Cline/Rules/
-rsync -avzL ~/Cline/Rules/ {USER}@{HOST}:~/sync-files/ai-agents-related/Cline/Rules/
 ```
 
 <!-- markdownlint-enable MD013 -->
@@ -123,8 +133,8 @@ rsync -avzL ~/Cline/Rules/ {USER}@{HOST}:~/sync-files/ai-agents-related/Cline/Ru
 **pull**:
 
 - Copies configuration files from the remote server to the local machine.
-- Copies to both the Linux and Windows directories, ensuring both
-  environments are synchronized.
+- Copies to both the Linux and Windows directories, ensuring both environments
+  are synchronized.
 
 <!-- markdownlint-disable MD013 -->
 
@@ -195,10 +205,8 @@ rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.config/opencode/plugin
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.local/share/opencode/auth.json /mnt/c/Users/{WIN_USER}/.local/share/opencode/auth.json
 
 # Cline
-rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/Cline/Rules/ ~/Cline/Rules/
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.linux.json ~/.vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json
 
-rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/Cline/Rules/ /mnt/c/Users/{WIN_USER}/Documents/Cline/Rules/
 rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.windows.json /mnt/c/Users/{WIN_USER}/AppData/Roaming/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json
 ```
 
@@ -206,5 +214,5 @@ rsync -avzL {USER}@{HOST}:~/sync-files/ai-agents-related/.vscode-server/data/Use
 
 ## Others
 
-The CLI contains one option, `--rsync-opts`, to pass custom options to rsync.
-By default, it uses `-avzL --update --delete --human-readable --mkpath`.
+The CLI contains one option, `--rsync-opts`, to pass custom options to rsync. By
+default, it uses `-avzL --update --delete --human-readable --mkpath`.

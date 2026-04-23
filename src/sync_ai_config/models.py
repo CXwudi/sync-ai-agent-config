@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from pathlib import Path
-from typing import Any, Iterator, Optional
+from pathlib import Path, PureWindowsPath
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class Operation(Enum):
@@ -23,8 +24,7 @@ class KeepMode(Enum):
   KEEP_BOTH = "keep_both"  # Windows→Remote(.windows) + Linux→Remote(.linux)
 
 
-@dataclass
-class FileMapping:
+class FileMapping(BaseModel):
   """
   Windows, Linux, Remote, 3-way file mapping.
 
@@ -32,25 +32,61 @@ class FileMapping:
   For Remote, paths are relative to a remote directory specified in the config.
   """
 
-  relative_path: Path
-  windows_relative_path: Optional[Path]
-  remote_relative_path: Optional[Path]
+  model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
+  relative_path: Path = Field(alias="path")
+  windows_relative_path: Path | None = Field(default=None, alias="windows_path")
+  remote_relative_path: Path | None = Field(default=None, alias="remote_path")
   keep_mode: KeepMode
-  is_directory: bool = False
+  is_directory: bool = Field(default=False, strict=True)
   description: str = ""
 
-  def __iter__(self) -> Iterator[Any]:
-    """Allow tuple unpacking of the mapping."""
-    return iter(
-      (
-        self.relative_path,
-        self.windows_relative_path,
-        self.remote_relative_path,
-        self.keep_mode,
-        self.is_directory,
-        self.description,
+  @field_validator(
+    "relative_path",
+    "windows_relative_path",
+    "remote_relative_path",
+    mode="before",
+  )
+  @classmethod
+  def _validate_relative_path_fragment(cls, value: object) -> object:
+    """Reject empty and absolute path fragments before Path coercion."""
+    if value is None:
+      return value
+
+    if isinstance(value, str):
+      path_text = value
+    elif isinstance(value, Path):
+      path_text = str(value)
+    else:
+      return value
+
+    if not path_text.strip():
+      raise ValueError("Path values must not be empty")
+
+    path = Path(path_text)
+    windows_path = PureWindowsPath(path_text)
+    if (
+      path.is_absolute()
+      or windows_path.is_absolute()
+      or windows_path.drive
+      or windows_path.root
+    ):
+      raise ValueError("Path values must be relative path fragments")
+
+    if ".." in path.parts or ".." in windows_path.parts:
+      raise ValueError(
+        "Path values must be relative path fragments without parent-directory (..) segments"
       )
-    )
+
+    return value
+
+
+class FileMappingConfig(BaseModel):
+  """Config file containing sync file and directory mappings."""
+
+  model_config = ConfigDict(extra="forbid")
+
+  mappings: list[FileMapping]
 
 
 @dataclass
