@@ -1,4 +1,4 @@
-"""Tests for mapping configuration models."""
+"""Tests for mapping Pydantic models."""
 
 from __future__ import annotations
 
@@ -193,4 +193,3 @@ def test_trailing_slash_does_not_imply_directory_mapping() -> None:
 
   assert mapping.relative_path == Path(".agents/skills")
   assert mapping.is_directory is False
-

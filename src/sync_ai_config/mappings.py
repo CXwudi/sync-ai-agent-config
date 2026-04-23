@@ -1,246 +1,30 @@
-"""Default file mappings for sync-ai-config."""
+"""Default mapping constants and compatibility exports for sync-ai-config."""
 
 from __future__ import annotations
 
-from pathlib import Path
-from typing import List
+import tomllib
+from importlib import resources
 
-from sync_ai_config.models import FileMapping, KeepMode
+from sync_ai_config.models import FileMapping, FileMappingConfig
 
 
+DEFAULT_MAPPINGS_RESOURCE = "default_mappings.toml"
 DEFAULT_RSYNC_OPTS = "-avzL --update --delete --human-readable --mkpath"
 
-COMMON_AGENT_FILE_MAPPINGS: List[FileMapping] = [
-  FileMapping(
-    path=Path(".agents/skills/"),
-    windows_relative_path=None,
-    remote_relative_path=None,
-    keep_mode=KeepMode.PREFER_LINUX,
-    is_directory=True,
-    description="Shared agent skills",
-  ),
-]
 
-CLAUDE_CODE_FILE_MAPPINGS: List[FileMapping] = [
-  FileMapping(
-    path=Path(".claude.json"),
-    windows_relative_path=None,
-    remote_relative_path=None,
-    keep_mode=KeepMode.KEEP_BOTH,
-    description="Claude Code config",
-  ),
-  FileMapping(
-    path=Path(".claude/settings.json"),
-    windows_relative_path=None,
-    remote_relative_path=None,
-    keep_mode=KeepMode.PREFER_LINUX,
-    description="Claude Code settings file",
-  ),
-  FileMapping(
-    path=Path(".claude/config.json"),
-    windows_relative_path=None,
-    remote_relative_path=None,
-    keep_mode=KeepMode.PREFER_LINUX,
-    description="Claude Code config.json file",
-  ),
-  FileMapping(
-    path=Path(".claude/CLAUDE.md"),
-    windows_relative_path=None,
-    remote_relative_path=None,
-    keep_mode=KeepMode.PREFER_LINUX,
-    description="Claude Code prompt file",
-  ),
-  FileMapping(
-    path=Path(".claude/agents/"),
-    windows_relative_path=None,
-    remote_relative_path=None,
-    keep_mode=KeepMode.PREFER_LINUX,
-    is_directory=True,
-    description="Claude Code subagents",
-  ),
-  FileMapping(
-    path=Path(".claude/skills/"),
-    windows_relative_path=None,
-    remote_relative_path=None,
-    keep_mode=KeepMode.PREFER_LINUX,
-    is_directory=True,
-    description="Claude Code skills",
-  ),
-]
-
-GEMINI_CLI_FILE_MAPPINGS: List[FileMapping] = [
-  FileMapping(
-    path=Path(".gemini/settings.json"),
-    windows_relative_path=None,
-    remote_relative_path=None,
-    keep_mode=KeepMode.PREFER_LINUX,
-    description="Gemini CLI settings",
-  ),
-  FileMapping(
-    path=Path(".gemini/AGENTS.md"),
-    windows_relative_path=None,
-    remote_relative_path=None,
-    keep_mode=KeepMode.PREFER_LINUX,
-    description="Gemini CLI AGENTS prompt file",
-  ),
-  FileMapping(
-    path=Path(".gemini/GEMINI.md"),
-    windows_relative_path=None,
-    remote_relative_path=None,
-    keep_mode=KeepMode.PREFER_LINUX,
-    description="Gemini CLI legacy prompt file",
-  ),
-]
-
-CODEX_CLI_FILE_MAPPINGS: List[FileMapping] = [
-  FileMapping(
-    path=Path(".codex/config.toml"),
-    windows_relative_path=None,
-    remote_relative_path=None,
-    keep_mode=KeepMode.PREFER_LINUX,
-    description="Codex CLI config",
-  ),
-  FileMapping(
-    path=Path(".codex/auth.json"),
-    windows_relative_path=None,
-    remote_relative_path=None,
-    keep_mode=KeepMode.PREFER_LINUX,
-    description="Codex CLI auth",
-  ),
-  FileMapping(
-    path=Path(".codex/AGENTS.md"),
-    windows_relative_path=None,
-    remote_relative_path=None,
-    keep_mode=KeepMode.PREFER_LINUX,
-    description="Codex CLI prompt file",
-  ),
-  FileMapping(
-    path=Path(".codex/plugins/"),
-    windows_relative_path=None,
-    remote_relative_path=None,
-    keep_mode=KeepMode.PREFER_LINUX,
-    is_directory=True,
-    description="Codex CLI plugins",
-  ),
-]
-
-PI_CODING_AGENT_FILE_MAPPINGS: List[FileMapping] = [
-  FileMapping(
-    path=Path(".pi/agent/settings.json"),
-    windows_relative_path=None,
-    remote_relative_path=None,
-    keep_mode=KeepMode.PREFER_LINUX,
-    description="Pi Coding Agent settings",
-  ),
-  FileMapping(
-    path=Path(".pi/agent/auth.json"),
-    windows_relative_path=None,
-    remote_relative_path=None,
-    keep_mode=KeepMode.PREFER_LINUX,
-    description="Pi Coding Agent auth",
-  ),
-  FileMapping(
-    path=Path(".pi/agent/AGENTS.md"),
-    windows_relative_path=None,
-    remote_relative_path=None,
-    keep_mode=KeepMode.PREFER_LINUX,
-    description="Pi Coding Agent prompt file",
-  ),
-]
-
-OPENCODE_FILE_MAPPINGS: List[FileMapping] = [
-  FileMapping(
-    path=Path(".config/opencode/opencode.json"),
-    windows_relative_path=None,
-    remote_relative_path=None,
-    keep_mode=KeepMode.PREFER_LINUX,
-    description="OpenCode main config (JSON)",
-  ),
-  FileMapping(
-    path=Path(".config/opencode/opencode.jsonc"),
-    windows_relative_path=None,
-    remote_relative_path=None,
-    keep_mode=KeepMode.PREFER_LINUX,
-    description="OpenCode main config (JSONC)",
-  ),
-  FileMapping(
-    path=Path(".config/opencode/AGENTS.md"),
-    windows_relative_path=None,
-    remote_relative_path=None,
-    keep_mode=KeepMode.PREFER_LINUX,
-    description="OpenCode prompt file",
-  ),
-  FileMapping(
-    path=Path(".config/opencode/prompts/"),
-    windows_relative_path=None,
-    remote_relative_path=None,
-    keep_mode=KeepMode.PREFER_LINUX,
-    is_directory=True,
-    description="OpenCode custom prompts",
-  ),
-  FileMapping(
-    path=Path(".config/opencode/agents/"),
-    windows_relative_path=None,
-    remote_relative_path=None,
-    keep_mode=KeepMode.PREFER_LINUX,
-    is_directory=True,
-    description="OpenCode custom agents",
-  ),
-  FileMapping(
-    path=Path(".config/opencode/commands/"),
-    windows_relative_path=None,
-    remote_relative_path=None,
-    keep_mode=KeepMode.PREFER_LINUX,
-    is_directory=True,
-    description="OpenCode custom commands",
-  ),
-  FileMapping(
-    path=Path(".config/opencode/plugins/"),
-    windows_relative_path=None,
-    remote_relative_path=None,
-    keep_mode=KeepMode.PREFER_LINUX,
-    is_directory=True,
-    description="OpenCode plugins",
-  ),
-  FileMapping(
-    path=Path(".local/share/opencode/auth.json"),
-    windows_relative_path=None,
-    remote_relative_path=None,
-    keep_mode=KeepMode.PREFER_LINUX,
-    description="OpenCode auth credentials",
-  ),
-]
-
-CLINE_FILE_MAPPINGS: List[FileMapping] = [
-  FileMapping(
-    path=Path(
-      ".vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"
-    ),
-    windows_relative_path=Path(
-      "AppData/Roaming/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"
-    ),
-    remote_relative_path=None,
-    keep_mode=KeepMode.PREFER_LINUX,
-    description="Cline MCP settings for VSCode",
-  ),
-  # The windows path is dependent on the user's Documents folder location, not necessarily "Documents"
-  # FileMapping(
-  #   path=Path("Cline/Rules/"),
-  #   windows_relative_path=Path("Documents/Cline/Rules/"),
-  #   remote_relative_path=None,
-  #   keep_mode=KeepMode.PREFER_LINUX,
-  #   is_directory=True,
-  #   description="Cline rules",
-  # ),
-]
+def read_default_mappings_text() -> str:
+  """Read the packaged default mapping config."""
+  return (
+    resources.files("sync_ai_config")
+    .joinpath(DEFAULT_MAPPINGS_RESOURCE)
+    .read_text(encoding="utf-8")
+  )
 
 
-ALL_FILE_MAPPINGS: List[FileMapping] = [
-  *COMMON_AGENT_FILE_MAPPINGS,
-  *CLAUDE_CODE_FILE_MAPPINGS,
-  *GEMINI_CLI_FILE_MAPPINGS,
-  *CODEX_CLI_FILE_MAPPINGS,
-  *PI_CODING_AGENT_FILE_MAPPINGS,
-  *OPENCODE_FILE_MAPPINGS,
-  *CLINE_FILE_MAPPINGS,
-]
+def load_default_file_mappings() -> list[FileMapping]:
+  """Load the packaged default sync file mappings."""
+  data = tomllib.loads(read_default_mappings_text())
+  return FileMappingConfig.model_validate(data).mappings
+
+
+ALL_FILE_MAPPINGS: list[FileMapping] = load_default_file_mappings()
