@@ -72,7 +72,7 @@ The recommended design is:
 2. Load that packaged TOML file through `importlib.resources` when no custom
    config path is provided.
 3. Add the custom config path input as exactly `--config PATH`, with
-   `SYNC_CONFIG` as the environment fallback.
+   `SYNC_LISTING_CONFIG` as the environment fallback.
 4. When a custom config file is provided, use it as the complete mapping list.
    Do not merge it with the packaged default.
 5. Drop any top-level config `version` field for now. The file shape should stay
@@ -189,18 +189,18 @@ contain a `version` field.
 The config path contract is:
 
 1. CLI `--config PATH`
-2. Environment variable `SYNC_CONFIG`
+2. Environment variable `SYNC_LISTING_CONFIG`
 3. Packaged default config file
 
 - `--config` has no short alias in the first implementation.
 - Custom config paths from either source are resolved by applying
   `Path(value).expanduser()` and then using normal
   process-current-working-directory semantics for relative paths.
-- If `--config` or `SYNC_CONFIG` points to a missing file, unreadable file,
-  invalid TOML file, or schema-invalid file, the CLI must fail with a clear
-  error and must not fall back to the packaged default.
-- The packaged default is used only when neither `--config` nor `SYNC_CONFIG` is
-  set.
+- If `--config` or `SYNC_LISTING_CONFIG` points to a missing file, unreadable
+  file, invalid TOML file, or schema-invalid file, the CLI must fail with a
+  clear error and must not fall back to the packaged default.
+- The packaged default is used only when neither `--config` nor
+  `SYNC_LISTING_CONFIG` is set.
 
 ### Validation behavior
 
@@ -277,8 +277,8 @@ Implementation should be validated with unit tests and CLI-oriented tests:
 - Pull task generation from the packaged default config preserves expected
   supported files and ordering.
 - A custom TOML config replaces the default entirely.
-- CLI `--config` takes precedence over `SYNC_CONFIG`.
-- `SYNC_CONFIG` takes precedence over the packaged default.
+- CLI `--config` takes precedence over `SYNC_LISTING_CONFIG`.
+- `SYNC_LISTING_CONFIG` takes precedence over the packaged default.
 - Missing custom config path fails clearly.
 - Invalid TOML fails clearly.
 - Unknown mapping fields fail clearly.

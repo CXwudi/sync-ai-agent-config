@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Literal, Sequence
 
 from sync_ai_config.config import Config
-from sync_ai_config.mapping_config import SYNC_CONFIG_ENV
+from sync_ai_config.mapping_config import SYNC_LISTING_CONFIG_ENV
 from sync_ai_config.models import Operation
 
 
@@ -80,7 +80,7 @@ def create_argument_parser() -> argparse.ArgumentParser:
     metavar="PATH",
     help=(
       "TOML mapping config path "
-      f"(overrides {SYNC_CONFIG_ENV} and replaces the packaged defaults)"
+      f"(overrides {SYNC_LISTING_CONFIG_ENV} and replaces the packaged defaults)"
     ),
   )
 
@@ -147,7 +147,7 @@ def mapping_config_path_from_args(args: CliArgs) -> Path | None:
   if args.config is not None:
     return Path(args.config).expanduser()
 
-  env_config_path = os.getenv(SYNC_CONFIG_ENV)
+  env_config_path = os.getenv(SYNC_LISTING_CONFIG_ENV)
   if env_config_path:
     return Path(env_config_path).expanduser()
 

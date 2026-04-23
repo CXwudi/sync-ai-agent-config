@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 import sync_ai_config.main as main_module
-from sync_ai_config.mapping_config import SYNC_CONFIG_ENV
+from sync_ai_config.mapping_config import SYNC_LISTING_CONFIG_ENV
 from sync_ai_config.models import RsyncTask
 
 
@@ -93,7 +93,7 @@ def test_main_uses_packaged_default_without_custom_config(
   caplog: pytest.LogCaptureFixture,
 ) -> None:
   """Existing commands should keep using packaged mappings without config input."""
-  monkeypatch.delenv(SYNC_CONFIG_ENV, raising=False)
+  monkeypatch.delenv(SYNC_LISTING_CONFIG_ENV, raising=False)
   captured_tasks = configure_main_success(monkeypatch, ["push"])
   caplog.set_level(logging.INFO)
 
@@ -105,17 +105,17 @@ def test_main_uses_packaged_default_without_custom_config(
   assert "Using packaged default mapping config" in caplog.text
 
 
-def test_main_uses_sync_config_env_before_packaged_default(
+def test_main_uses_sync_listing_config_env_before_packaged_default(
   tmp_path: Path,
   monkeypatch: pytest.MonkeyPatch,
   caplog: pytest.LogCaptureFixture,
 ) -> None:
-  """SYNC_CONFIG should replace packaged defaults when --config is absent."""
+  """SYNC_LISTING_CONFIG should replace packaged defaults when --config is absent."""
   env_config_path = write_mapping_config(
     tmp_path / "env.toml",
     ".custom/env-config.json",
   )
-  monkeypatch.setenv(SYNC_CONFIG_ENV, str(env_config_path))
+  monkeypatch.setenv(SYNC_LISTING_CONFIG_ENV, str(env_config_path))
   captured_tasks = configure_main_success(monkeypatch, ["push"])
   caplog.set_level(logging.INFO)
 
@@ -127,11 +127,11 @@ def test_main_uses_sync_config_env_before_packaged_default(
   assert f"Using custom mapping config file: {env_config_path}" in caplog.text
 
 
-def test_main_config_option_overrides_sync_config_env(
+def test_main_config_option_overrides_sync_listing_config_env(
   tmp_path: Path,
   monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-  """CLI --config should override SYNC_CONFIG during task generation."""
+  """CLI --config should override SYNC_LISTING_CONFIG during task generation."""
   cli_config_path = write_mapping_config(
     tmp_path / "cli.toml",
     ".custom/cli-config.json",
@@ -140,7 +140,7 @@ def test_main_config_option_overrides_sync_config_env(
     tmp_path / "env.toml",
     ".custom/env-config.json",
   )
-  monkeypatch.setenv(SYNC_CONFIG_ENV, str(env_config_path))
+  monkeypatch.setenv(SYNC_LISTING_CONFIG_ENV, str(env_config_path))
   captured_tasks = configure_main_success(
     monkeypatch,
     ["--config", str(cli_config_path), "push"],

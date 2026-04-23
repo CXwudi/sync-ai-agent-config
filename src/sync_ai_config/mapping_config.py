@@ -12,7 +12,7 @@ from sync_ai_config.models import FileMapping, FileMappingConfig
 
 
 DEFAULT_MAPPINGS_RESOURCE = "default_mappings.toml"
-SYNC_CONFIG_ENV = "SYNC_CONFIG"
+SYNC_LISTING_CONFIG_ENV = "SYNC_LISTING_CONFIG"
 
 
 class MappingConfigError(ValueError):

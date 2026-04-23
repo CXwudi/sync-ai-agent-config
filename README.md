@@ -1,6 +1,7 @@
 # 🤖 AI Agent Config Sync
 
-Hey there! This is a helper tool to keep your AI agent configuration files (Claude, Gemini, etc.) synced across Linux, Windows, and a remote server.
+Hey there! This is a helper tool to keep your AI agent configuration files
+(Claude, Gemini, etc.) synced across Linux, Windows, and a remote server.
 
 It uses `rsync` under the hood.
 
@@ -19,6 +20,8 @@ export SYNC_USER="your_remote_username"
 export SYNC_HOST="your_remote_hostname_or_ip"
 export SYNC_DIR="~/sync-files/ai-agents-related" # Optional: default is ~/sync-files/ai-agents-related
 export WIN_USER="your_windows_username" # e.g., "jane" if your windows path is /mnt/c/Users/jane
+# Optional: custom mapping config, stored in local
+export SYNC_LISTING_CONFIG="~/sync-ai-mappings.toml"
 ```
 
 ## Usage
@@ -43,6 +46,46 @@ uv run sync-ai-config pull
 uv run sync-ai-config push --dry-run
 ```
 
+## Mapping Config File
+
+By default, `sync-ai-config` comes with a default TOML mapping file for the
+supported agent configs. You can replace it with your own by creating a custom
+mapping config as follows:
+
+Example:
+
+```toml
+[[mappings]]
+# Required path relative to the Linux home directory.
+# Also used as the default Windows and remote path when no override is provided.
+path = ".codex/plugins/"
+
+# Optional path relative to /mnt/c/Users/{WIN_USER}.
+# Omit this when the Windows-side path is the same as path.
+windows_path = ".codex/plugins/"
+
+# Optional path relative to SYNC_DIR.
+# Omit this when the remote-side path is the same as path.
+remote_path = ".codex/plugins/"
+
+# Required sync mode: prefer_windows, prefer_linux, or keep_both.
+keep_mode = "prefer_linux"
+
+# Optional; defaults to false.
+# Set true for directory mappings so rsync paths keep trailing slashes.
+is_directory = true
+
+# Optional human-readable label used in logs.
+description = "Codex plugins"
+```
+
+Then either set the `SYNC_LISTING_CONFIG` env var, or pass the path with
+`--config` when running the command:
+
+```bash
+uv run sync-ai-config push --config ~/my-sync-mappings.toml
+```
+
 ## Development
 
 ```bash
@@ -60,14 +103,19 @@ just build-exe  # Build a single-file executable
 
 ## Command-Line Options
 
-| Argument | Flag | Environment Variable | Description |
-|---|---|---|---|
-| **Operation** | `push` or `pull` | | The sync operation to perform. |
-| **Remote User** | `-u`, `--remote-user` | `SYNC_USER` | Your SSH username for the remote server. |
-| **Remote Host** | `-H`, `--remote-host` | `SYNC_HOST` | The hostname or IP address of the remote server. |
-| **Remote Dir** | `-d`, `--remote-dir` | `SYNC_DIR` | The base directory on the remote server to sync to. |
-| **Windows User**| `-w`, `--windows-user`| `WIN_USER` | Your Windows username to enable syncing Windows files. |
-| **Dry Run** | `--dry-run` | | Show what commands will be run without actually executing them. |
-| **Rsync Opts** | `--rsync-opts` | | A string of options to pass directly to `rsync`. |
-| **Log Level** | `--log-level` | | Set the logging verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`). |
-| **Version** | `--version` | | Show the script's version. |
+<!-- markdownlint-disable MD013 -->
+
+| Argument           | Flag                   | Environment Variable  | Description                                                      |
+| ------------------ | ---------------------- | --------------------- | ---------------------------------------------------------------- |
+| **Operation**      | `push` or `pull`       |                       | The sync operation to perform.                                   |
+| **Remote User**    | `-u`, `--remote-user`  | `SYNC_USER`           | Your SSH username for the remote server.                         |
+| **Remote Host**    | `-H`, `--remote-host`  | `SYNC_HOST`           | The hostname or IP address of the remote server.                 |
+| **Remote Dir**     | `-d`, `--remote-dir`   | `SYNC_DIR`            | The base directory on the remote server to sync to.              |
+| **Windows User**   | `-w`, `--windows-user` | `WIN_USER`            | Your Windows username to enable syncing Windows files.           |
+| **Mapping Config** | `--config`             | `SYNC_LISTING_CONFIG` | TOML mapping config that replaces the packaged defaults.         |
+| **Dry Run**        | `--dry-run`            |                       | Show what commands will be run without actually executing them.  |
+| **Rsync Opts**     | `--rsync-opts`         |                       | A string of options to pass directly to `rsync`.                 |
+| **Log Level**      | `--log-level`          |                       | Set the logging verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`). |
+| **Version**        | `--version`            |                       | Show the script's version.                                       |
+
+<!-- markdownlint-enable MD013 -->

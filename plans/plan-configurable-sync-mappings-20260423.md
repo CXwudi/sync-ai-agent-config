@@ -11,11 +11,11 @@ TOML mapping config while preserving the current packaged defaults.
 `spec/spec-configurable-sync-mappings-20260423.md` and GitHub issue #10.
 
 **Scope:** Implement TOML + Pydantic mapping config loading, package the current
-mapping list as the default config, add `--config PATH`/`SYNC_CONFIG` custom
-config support, update tests, packaging metadata, and docs. Excludes trimming
-the current default mappings, merge/extend semantics, schema versioning, and
-moving runtime settings such as remote host or rsync options into the mapping
-config.
+mapping list as the default config, add `--config PATH`/`SYNC_LISTING_CONFIG`
+custom config support, update tests, packaging metadata, and docs. Excludes
+trimming the current default mappings, merge/extend semantics, schema
+versioning, and moving runtime settings such as remote host or rsync options
+into the mapping config.
 
 **Approach:** Work incrementally from the data model outward: add the Pydantic
 schema, move default data into a packaged TOML resource, add a small loader,
@@ -264,7 +264,8 @@ Tasks 2 and 3.
 
 - [ ] **Step 1:** Add constants such as
       `DEFAULT_MAPPINGS_RESOURCE = "default_mappings.toml"` and
-      `SYNC_CONFIG_ENV = "SYNC_CONFIG"` in the loader or CLI layer.
+      `SYNC_LISTING_CONFIG_ENV = "SYNC_LISTING_CONFIG"` in the loader or CLI
+      layer.
 - [ ] **Step 2:** Implement `read_default_mappings_text()` with
       `importlib.resources.files("sync_ai_config").joinpath(DEFAULT_MAPPINGS_RESOURCE).read_text(encoding="utf-8")`.
 - [ ] **Step 3:** Implement `load_default_mappings() -> list[FileMapping]` for
@@ -331,8 +332,9 @@ Tasks 2 and 3.
 
 #### 5.1 Intent
 
-Expose `--config PATH`, honor `SYNC_CONFIG`, and pass the resolved mapping list
-into existing task generation instead of importing a hardcoded list.
+Expose `--config PATH`, honor `SYNC_LISTING_CONFIG`, and pass the resolved
+mapping list into existing task generation instead of importing a hardcoded
+list.
 
 #### 5.2 Files
 
@@ -346,11 +348,11 @@ Task 4.
 
 - [ ] **Step 1:** Add `config: str | None = None` to `CliArgs`.
 - [ ] **Step 2:** Add `--config PATH` with no short alias. Help text should say
-      the file is TOML, overrides `SYNC_CONFIG`, and replaces the packaged
-      defaults.
+      the file is TOML, overrides `SYNC_LISTING_CONFIG`, and replaces the
+      packaged defaults.
 - [ ] **Step 3:** Add a small documented resolver, for example
       `mapping_config_path_from_args(args: CliArgs) -> Path | None`, with
-      precedence: CLI `--config` > `SYNC_CONFIG` > packaged default.
+      precedence: CLI `--config` > `SYNC_LISTING_CONFIG` > packaged default.
 - [ ] **Step 4:** Apply `Path(value).expanduser()` to CLI/env custom paths and
       leave relative paths relative to the current working directory.
 - [ ] **Step 5:** In `main()`, after runtime config and operation validation but
@@ -361,9 +363,9 @@ Task 4.
 - [ ] **Step 7:** Add debug/info logging that identifies whether the packaged
       default or a custom config path is used, without logging excessive config
       contents.
-- [ ] **Step 8:** Add tests proving `--config` beats `SYNC_CONFIG`,
-      `SYNC_CONFIG` beats the packaged default, and existing commands still work
-      without a config path.
+- [ ] **Step 8:** Add tests proving `--config` beats `SYNC_LISTING_CONFIG`,
+      `SYNC_LISTING_CONFIG` beats the packaged default, and existing commands
+      still work without a config path.
 - [ ] **Step 9:** Update existing sync-task tests to load the packaged default
       via the new loader instead of importing `ALL_FILE_MAPPINGS`.
 
@@ -451,13 +453,13 @@ so future agents do not think mappings are still hardcoded.
 
 Tasks 3 through 5.
 
-- [ ] **Step 1:** In `README.md`, add `SYNC_CONFIG` to quick setup as optional
-      and document `--config PATH` in the command-line options table.
+- [ ] **Step 1:** In `README.md`, add `SYNC_LISTING_CONFIG` to quick setup as
+      optional and document `--config PATH` in the command-line options table.
 - [ ] **Step 2:** Add a short “Mapping config file” section to `README.md`
       explaining:
   - default packaged mappings are used when no config path is provided;
   - custom config replaces defaults entirely;
-  - precedence is `--config` > `SYNC_CONFIG` > packaged default;
+  - precedence is `--config` > `SYNC_LISTING_CONFIG` > packaged default;
   - the file is TOML and has no `version` field.
 - [ ] **Step 3:** Include a concise TOML example with one file mapping and one
       directory mapping, showing `path`, optional `windows_path`/`remote_path`,
@@ -549,7 +551,7 @@ Tasks 1 through 7.
 | ![a file](src/sync_ai_config/task_builder.py:1:241)                          | Existing mapping-to-rsync-task behavior that should remain unchanged except for type-hint modernization if needed.             | Important          |
 | ![a file](src/sync_ai_config/task_executor.py:1:66)                          | Directory trailing-slash behavior that must keep working for `is_directory = true` mappings.                                   | Important          |
 | ![a file](tests/test_sync_tasks.py:1:108)                                    | Existing tests asserting default task output and order; update them to use loaded default mappings.                            | Important          |
-| ![a file](README.md:1:68)                                                    | User-facing setup, usage, and command option docs that need `--config`/`SYNC_CONFIG` coverage.                                 | Important          |
+| ![a file](README.md:1:68)                                                    | User-facing setup, usage, and command option docs that need `--config`/`SYNC_LISTING_CONFIG` coverage.                         | Important          |
 | ![a file](pyproject.toml:1:31)                                               | Project dependency and Hatchling build configuration; add Pydantic and include the default TOML resource.                      | Important          |
 | ![a file](justfile:17:19)                                                    | PyInstaller build command that must include the packaged default TOML resource.                                                | Important          |
 | ![a file](sync-ai-config.spec:4:16)                                          | Existing PyInstaller spec with empty `datas`; add the TOML resource if this build path remains.                                | Important          |

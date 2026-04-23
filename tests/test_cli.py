@@ -12,7 +12,7 @@ from sync_ai_config.cli import (
   mapping_config_path_from_args,
   parse_cli_args,
 )
-from sync_ai_config.mapping_config import SYNC_CONFIG_ENV
+from sync_ai_config.mapping_config import SYNC_LISTING_CONFIG_ENV
 from sync_ai_config.models import Operation
 
 
@@ -32,18 +32,19 @@ def test_config_help_documents_custom_mapping_behavior() -> None:
 
   assert "--config PATH" in help_text
   assert "TOML mapping config path" in help_text
-  assert SYNC_CONFIG_ENV in help_text
-  assert "replaces the packaged defaults" in help_text
+  assert SYNC_LISTING_CONFIG_ENV in help_text
+  assert "replaces the packaged" in help_text
+  assert "defaults" in help_text
 
 
 def test_mapping_config_path_from_args_prefers_cli_over_env(
   tmp_path: Path,
   monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-  """CLI --config should take precedence over SYNC_CONFIG."""
+  """CLI --config should take precedence over SYNC_LISTING_CONFIG."""
   cli_path = tmp_path / "cli.toml"
   env_path = tmp_path / "env.toml"
-  monkeypatch.setenv(SYNC_CONFIG_ENV, str(env_path))
+  monkeypatch.setenv(SYNC_LISTING_CONFIG_ENV, str(env_path))
 
   path = mapping_config_path_from_args(CliArgs(config=str(cli_path)))
 
@@ -54,9 +55,9 @@ def test_mapping_config_path_from_args_uses_env_without_cli(
   tmp_path: Path,
   monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-  """SYNC_CONFIG should be used when --config is absent."""
+  """SYNC_LISTING_CONFIG should be used when --config is absent."""
   env_path = tmp_path / "env.toml"
-  monkeypatch.setenv(SYNC_CONFIG_ENV, str(env_path))
+  monkeypatch.setenv(SYNC_LISTING_CONFIG_ENV, str(env_path))
 
   path = mapping_config_path_from_args(CliArgs())
 
@@ -67,7 +68,7 @@ def test_mapping_config_path_from_args_uses_default_without_custom_path(
   monkeypatch: pytest.MonkeyPatch,
 ) -> None:
   """The resolver should return None when the packaged default should be used."""
-  monkeypatch.delenv(SYNC_CONFIG_ENV, raising=False)
+  monkeypatch.delenv(SYNC_LISTING_CONFIG_ENV, raising=False)
 
   assert mapping_config_path_from_args(CliArgs()) is None
 
@@ -90,11 +91,11 @@ def test_mapping_config_path_from_args_expands_env_user_home(
   tmp_path: Path,
   monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-  """SYNC_CONFIG paths should support user-home expansion."""
+  """SYNC_LISTING_CONFIG paths should support user-home expansion."""
   home_dir = tmp_path / "home"
   home_dir.mkdir()
   monkeypatch.setenv("HOME", str(home_dir))
-  monkeypatch.setenv(SYNC_CONFIG_ENV, "~/mappings.toml")
+  monkeypatch.setenv(SYNC_LISTING_CONFIG_ENV, "~/mappings.toml")
 
   path = mapping_config_path_from_args(CliArgs())
 
