@@ -5,9 +5,8 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path, PureWindowsPath
 
-from sync_ai_config.mappings import (
-  ALL_FILE_MAPPINGS,
-  load_default_file_mappings,
+from sync_ai_config.mapping_config import (
+  load_default_mappings,
   read_default_mappings_text,
 )
 from sync_ai_config.models import FileMapping, FileMappingConfig, KeepMode
@@ -22,7 +21,7 @@ def load_packaged_default_mappings() -> list[FileMapping]:
 def test_packaged_default_toml_parses_successfully() -> None:
   """The packaged default TOML should parse into file mappings."""
   mappings = load_packaged_default_mappings()
-  loaded_mappings = load_default_file_mappings()
+  loaded_mappings = load_default_mappings()
 
   assert [mapping.model_dump() for mapping in mappings] == [
     mapping.model_dump() for mapping in loaded_mappings
@@ -98,12 +97,3 @@ def test_default_mappings_have_no_absolute_paths() -> None:
       assert not path_value.is_absolute()
       assert not PureWindowsPath(path_value.as_posix()).is_absolute()
       assert not PureWindowsPath(path_value.as_posix()).drive
-
-
-def test_legacy_all_file_mappings_loads_from_packaged_default() -> None:
-  """The compatibility export should reflect the packaged default TOML."""
-  expected_mappings = load_packaged_default_mappings()
-
-  assert [mapping.model_dump() for mapping in ALL_FILE_MAPPINGS] == [
-    mapping.model_dump() for mapping in expected_mappings
-  ]

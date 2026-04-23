@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 
 from sync_ai_config.config import Config
-from sync_ai_config.mappings import load_default_file_mappings
+from sync_ai_config.mapping_config import load_default_mappings
 from sync_ai_config.models import RsyncTask
 from sync_ai_config.task_builder import TaskBuilder
 from sync_ai_config.task_executor import TaskExecutor
@@ -36,7 +36,7 @@ def assert_before(text: str, first: str, second: str) -> None:
 
 def test_build_push_tasks_matches_supported_agent_files() -> None:
   """Push tasks should include supported agent files in the expected order."""
-  tasks = TaskBuilder(build_config()).build_push_tasks(load_default_file_mappings())
+  tasks = TaskBuilder(build_config()).build_push_tasks(load_default_mappings())
   rendered = render_tasks(tasks)
 
   assert ".agents/skills" in rendered
@@ -58,7 +58,7 @@ def test_build_push_tasks_matches_supported_agent_files() -> None:
 
 def test_build_pull_tasks_matches_supported_agent_files() -> None:
   """Pull tasks should mirror supported agent files in the expected order."""
-  tasks = TaskBuilder(build_config()).build_pull_tasks(load_default_file_mappings())
+  tasks = TaskBuilder(build_config()).build_pull_tasks(load_default_mappings())
   rendered = render_tasks(tasks)
 
   assert ".agents/skills" in rendered
@@ -81,7 +81,7 @@ def test_build_pull_tasks_matches_supported_agent_files() -> None:
 def test_dry_run_logs_revised_rsync_commands(caplog) -> None:
   """Dry-run logging should expose the supported agent sync commands."""
   config = build_config(dry_run=True)
-  tasks = TaskBuilder(config).build_push_tasks(load_default_file_mappings())
+  tasks = TaskBuilder(config).build_push_tasks(load_default_mappings())
   executor = TaskExecutor(config)
 
   caplog.set_level(logging.INFO)

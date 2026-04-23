@@ -5,10 +5,11 @@ description = "Sync AI agent configuration files between local machine and remot
 requires-python = ">=3.11"
 dependencies = [
   "pydantic>=2",
+  "rich>=15.0.0",
 ]
 
 [project.scripts]
-sync-ai-config = "sync_ai_config.cli:main"
+sync-ai-config = "sync_ai_config.main:main"
 
 [build-system]
 requires = ["hatchling"]

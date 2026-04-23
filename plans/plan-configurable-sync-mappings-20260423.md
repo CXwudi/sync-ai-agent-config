@@ -86,7 +86,7 @@ specified by the design.
 #### 2.2 Files
 
 - Modify: `src/sync_ai_config/models.py`
-- Test: `tests/test_mapping_config.py` or `tests/test_models.py`
+- Test: `tests/test_file_mapping_models.py`
 
 #### 2.3 Dependencies
 
@@ -119,7 +119,7 @@ Task 1.
 
 #### 2.4 Verification
 
-- Run: `uv run pytest tests/test_mapping_config.py -v`
+- Run: `uv run pytest tests/test_file_mapping_models.py -v`
 - Run: `uv run ty check src/sync_ai_config tests`
 - Expect: Pydantic parses valid mapping entries into `FileMapping` objects,
   rejects invalid entries with useful validation paths, and existing runtime
@@ -172,7 +172,8 @@ mapping count, order, paths, keep modes, directory flags, and descriptions.
 
 - Create: `src/sync_ai_config/default_mappings.toml`
 - Modify: `src/sync_ai_config/mappings.py`
-- Test: `tests/test_mapping_config.py`
+- Test: `tests/test_default_mappings.py`
+- Test: `tests/test_sync_tasks.py`
 - Read: `src/sync_ai_config/mappings.py`
 
 #### 3.3 Dependencies
@@ -203,7 +204,8 @@ Task 2.
 
 #### 3.4 Verification
 
-- Run: `uv run pytest tests/test_mapping_config.py -v`
+- Run:
+  `uv run pytest tests/test_default_mappings.py tests/test_sync_tasks.py -v`
 - Expect: Default TOML parses into the same active mapping set that the old
   `ALL_FILE_MAPPINGS` represented.
 
@@ -254,7 +256,7 @@ errors to the CLI.
 
 - Create: `src/sync_ai_config/mapping_config.py`
 - Modify: `src/sync_ai_config/__init__.py` only if exports are needed
-- Test: `tests/test_mapping_config.py`
+- Test: `tests/test_mapping_config_loader.py`
 
 #### 4.3 Dependencies
 
@@ -286,7 +288,7 @@ Tasks 2 and 3.
 
 #### 4.4 Verification
 
-- Run: `uv run pytest tests/test_mapping_config.py -v`
+- Run: `uv run pytest tests/test_mapping_config_loader.py -v`
 - Expect: Loader behavior matches the spec, especially custom replacement and no
   fallback on custom config errors.
 
