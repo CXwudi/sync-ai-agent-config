@@ -63,13 +63,20 @@ class FileMapping(BaseModel):
     if not path_text.strip():
       raise ValueError("Path values must not be empty")
 
+    path = Path(path_text)
     windows_path = PureWindowsPath(path_text)
     if (
-      Path(path_text).is_absolute()
+      path.is_absolute()
       or windows_path.is_absolute()
       or windows_path.drive
+      or windows_path.root
     ):
       raise ValueError("Path values must be relative path fragments")
+
+    if ".." in path.parts or ".." in windows_path.parts:
+      raise ValueError(
+        "Path values must be relative path fragments without parent-directory (..) segments"
+      )
 
     return value
 

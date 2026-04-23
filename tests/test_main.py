@@ -88,6 +88,31 @@ def test_main_installs_rich_tracebacks_before_parsing(monkeypatch) -> None:
   assert calls == [((), {"show_locals": False})]
 
 
+def test_main_requires_operation_before_other_preflight_checks(
+  monkeypatch: pytest.MonkeyPatch,
+  capsys: pytest.CaptureFixture[str],
+) -> None:
+  """A missing operation should fail before rsync or environment checks."""
+
+  def fake_install(*args: object, **kwargs: object) -> None:
+    pass
+
+  def fail_which(command: str) -> str | None:
+    raise AssertionError("rsync lookup should not run before operation validation")
+
+  monkeypatch.setattr(main_module, "install_rich_tracebacks", fake_install)
+  monkeypatch.setattr(main_module.shutil, "which", fail_which)
+  monkeypatch.setattr(main_module.sys, "argv", ["sync-ai-config"])
+  monkeypatch.delenv("SYNC_USER", raising=False)
+  monkeypatch.delenv("SYNC_HOST", raising=False)
+
+  with pytest.raises(SystemExit) as exc_info:
+    main_module.main()
+
+  assert exc_info.value.code == 2
+  assert "Operation (push/pull) is required" in capsys.readouterr().err
+
+
 def test_main_uses_packaged_default_without_custom_config(
   monkeypatch: pytest.MonkeyPatch,
   caplog: pytest.LogCaptureFixture,

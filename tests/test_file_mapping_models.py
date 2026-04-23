@@ -140,9 +140,7 @@ def test_invalid_keep_mode_is_rejected() -> None:
 def test_is_directory_requires_boolean() -> None:
   """Directory flags should be booleans, not string-like values."""
   with pytest.raises(ValidationError) as exc_info:
-    FileMappingConfig.model_validate(
-      {"mappings": [mapping_entry(is_directory="true")]}
-    )
+    FileMappingConfig.model_validate({"mappings": [mapping_entry(is_directory="true")]})
 
   assert_validation_error_location(exc_info.value, ("mappings", 0, "is_directory"))
 
@@ -166,10 +164,11 @@ def test_empty_path_values_are_rejected(
 @pytest.mark.parametrize(
   "path_value",
   [
-    "/tmp/config.json",
+    "/opt/config.json",
     "C:/Users/me/config.json",
     r"C:\Users\me\config.json",
     "C:Users/me/config.json",
+    r"\Users\me\config.json",
   ],
 )
 def test_absolute_or_drive_qualified_paths_are_rejected(
@@ -177,6 +176,29 @@ def test_absolute_or_drive_qualified_paths_are_rejected(
   path_value: str,
 ) -> None:
   """Path values should be relative fragments, not absolute paths."""
+  with pytest.raises(ValidationError) as exc_info:
+    FileMappingConfig.model_validate(
+      {"mappings": [mapping_entry(**{field_name: path_value})]}
+    )
+
+  assert_validation_error_location(exc_info.value, ("mappings", 0, field_name))
+
+
+@pytest.mark.parametrize("field_name", ["path", "windows_path", "remote_path"])
+@pytest.mark.parametrize(
+  "path_value",
+  [
+    "../config.json",
+    ".config/../secrets.json",
+    r"..\config.json",
+    r".config\..\secrets.json",
+  ],
+)
+def test_parent_directory_path_fragments_are_rejected(
+  field_name: str,
+  path_value: str,
+) -> None:
+  """Path values should not escape their configured base directory."""
   with pytest.raises(ValidationError) as exc_info:
     FileMappingConfig.model_validate(
       {"mappings": [mapping_entry(**{field_name: path_value})]}

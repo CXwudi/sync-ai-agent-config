@@ -40,6 +40,9 @@ def main() -> int:
   numeric_level = getattr(logging, args.log_level.upper(), logging.INFO)
   logging.getLogger().setLevel(numeric_level)
 
+  if not args.operation:
+    parser.error("Operation (push/pull) is required")
+
   if not shutil.which("rsync"):
     logger.critical(
       "'rsync' command not found. Please install rsync and ensure it is in your PATH."
@@ -53,9 +56,6 @@ def main() -> int:
 
   logger.info("AI Config Sync")
   logger.debug("Configuration: %s", config)
-
-  if not args.operation:
-    parser.error("Operation (push/pull) is required")
 
   mapping_config_path = mapping_config_path_from_args(args)
   try:

@@ -96,6 +96,7 @@ def test_load_mappings_expands_custom_path_user_home(
   home_dir.mkdir()
   custom_path = write_config(home_dir / "mappings.toml")
   monkeypatch.setenv("HOME", str(home_dir))
+  monkeypatch.setenv("USERPROFILE", str(home_dir))
 
   mappings = load_mappings(Path("~/mappings.toml"))
 
