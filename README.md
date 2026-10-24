@@ -55,17 +55,20 @@ Example:
 
 ```toml
 [[mappings]]
-# Required path relative to the Linux home directory.
-# Also used as the default Windows and remote path when no override is provided.
-path = ".codex/plugins/"
+# Required default path relative to Linux home, /mnt/c/Users/{WIN_USER}, and SYNC_DIR.
+relative_path = ".codex/plugins/"
 
-# Optional path relative to /mnt/c/Users/{WIN_USER}.
-# Omit this when the Windows-side path is the same as path.
-windows_path = ".codex/plugins/"
+# Optional Linux path override (relative to Linux home or a POSIX absolute path).
+# Omit this when the Linux-side path is the same as relative_path.
+linux_override_path = ".codex/plugins/"
+
+# Optional Windows path override (relative to /mnt/c/Users/{WIN_USER} or a POSIX absolute path).
+# Omit this when the Windows-side path is the same as relative_path.
+windows_override_path = ".codex/plugins/"
 
 # Optional path relative to SYNC_DIR.
-# Omit this when the remote-side path is the same as path.
-remote_path = ".codex/plugins/"
+# Omit this when the remote-side path is the same as relative_path.
+remote_relative_path = ".codex/plugins/"
 
 # Required sync mode: prefer_windows, prefer_linux, or keep_both.
 keep_mode = "prefer_linux"

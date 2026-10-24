@@ -49,19 +49,18 @@ class TaskBuilder:
   def _windows_to_linux_then_remote(self, mapping: FileMapping) -> List[RsyncTask]:
     """Build tasks for pushing Windows files to Linux then to remote."""
     relative_path = mapping.relative_path
-    windows_relative_path = mapping.windows_relative_path
     remote_relative_path = mapping.remote_relative_path
     description = mapping.description
     is_directory = mapping.is_directory
 
     tasks: List[RsyncTask] = []
 
-    linux_path = self.config.local_home / relative_path
-    if self.config.windows_user_dir is not None:
-      windows_specific_relative_path: Path = windows_relative_path or relative_path
+    linux_path = self._build_linux_path(mapping)
+    windows_path = self._build_windows_path(mapping)
+    if windows_path is not None:
       tasks.append(
         RsyncTask(
-          src=self.config.windows_user_dir / windows_specific_relative_path,
+          src=windows_path,
           dest=linux_path,
           description=f"Windows to Linux: {description}",
           is_directory=is_directory,
@@ -81,20 +80,19 @@ class TaskBuilder:
   def _linux_to_windows_then_remote(self, mapping: FileMapping) -> List[RsyncTask]:
     """Build tasks for pushing Linux files to Windows then to remote."""
     relative_path = mapping.relative_path
-    windows_relative_path = mapping.windows_relative_path
     remote_relative_path = mapping.remote_relative_path
     description = mapping.description
     is_directory = mapping.is_directory
 
     tasks: List[RsyncTask] = []
 
-    linux_path = self.config.local_home / relative_path
-    if self.config.windows_user_dir is not None:
-      windows_specific_relative_path: Path = windows_relative_path or relative_path
+    linux_path = self._build_linux_path(mapping)
+    windows_path = self._build_windows_path(mapping)
+    if windows_path is not None:
       tasks.append(
         RsyncTask(
           src=linux_path,
-          dest=self.config.windows_user_dir / windows_specific_relative_path,
+          dest=windows_path,
           description=f"Linux to Windows: {description}",
           is_directory=is_directory,
         )
@@ -113,19 +111,18 @@ class TaskBuilder:
   def _both_to_remote_separately(self, mapping: FileMapping) -> List[RsyncTask]:
     """Build tasks for pushing Linux and Windows files to remote separately."""
     relative_path = mapping.relative_path
-    windows_relative_path = mapping.windows_relative_path
     remote_relative_path = mapping.remote_relative_path
     description = mapping.description
     is_directory = mapping.is_directory
 
     tasks: List[RsyncTask] = []
-    if self.config.windows_user_dir is not None:
-      windows_specific_relative_path: Path = windows_relative_path or relative_path
+    windows_path = self._build_windows_path(mapping)
+    if windows_path is not None:
       base_remote_path = remote_relative_path if remote_relative_path else relative_path
       remote_relative_path_win = self._build_suffix_path(base_remote_path, ".windows")
       tasks.append(
         RsyncTask(
-          src=self.config.windows_user_dir / windows_specific_relative_path,
+          src=windows_path,
           dest=self._build_remote_path(remote_relative_path_win),
           description=f"Windows to Remote: {description}",
           is_directory=is_directory,
@@ -134,7 +131,7 @@ class TaskBuilder:
 
     base_remote_path = remote_relative_path if remote_relative_path else relative_path
     remote_relative_path_linux = self._build_suffix_path(base_remote_path, ".linux")
-    linux_path = self.config.local_home / relative_path
+    linux_path = self._build_linux_path(mapping)
     tasks.append(
       RsyncTask(
         src=linux_path,
@@ -149,14 +146,13 @@ class TaskBuilder:
   def _remote_to_linux_then_windows(self, mapping: FileMapping) -> List[RsyncTask]:
     """Build tasks for pulling Linux files from remote then to Windows."""
     relative_path = mapping.relative_path
-    windows_relative_path = mapping.windows_relative_path
     remote_relative_path = mapping.remote_relative_path
     description = mapping.description
     is_directory = mapping.is_directory
 
     tasks: List[RsyncTask] = []
 
-    linux_path = self.config.local_home / relative_path
+    linux_path = self._build_linux_path(mapping)
     tasks.append(
       RsyncTask(
         src=self._build_remote_path(relative_path, remote_relative_path),
@@ -166,12 +162,12 @@ class TaskBuilder:
       )
     )
 
-    if self.config.windows_user_dir is not None:
-      windows_specific_relative_path: Path = windows_relative_path or relative_path
+    windows_path = self._build_windows_path(mapping)
+    if windows_path is not None:
       tasks.append(
         RsyncTask(
           src=linux_path,
-          dest=self.config.windows_user_dir / windows_specific_relative_path,
+          dest=windows_path,
           description=f"Linux to Windows: {description}",
           is_directory=is_directory,
         )
@@ -182,14 +178,13 @@ class TaskBuilder:
   def _remote_separately_to_both(self, mapping: FileMapping) -> List[RsyncTask]:
     """Build tasks for pulling Linux and Windows files from remote separately."""
     relative_path = mapping.relative_path
-    windows_relative_path = mapping.windows_relative_path
     remote_relative_path = mapping.remote_relative_path
     description = mapping.description
     is_directory = mapping.is_directory
 
     tasks: List[RsyncTask] = []
 
-    linux_path = self.config.local_home / relative_path
+    linux_path = self._build_linux_path(mapping)
     base_remote_path = remote_relative_path if remote_relative_path else relative_path
     remote_relative_path_linux = self._build_suffix_path(base_remote_path, ".linux")
     tasks.append(
@@ -201,20 +196,36 @@ class TaskBuilder:
       )
     )
 
-    if self.config.windows_user_dir is not None:
-      windows_specific_relative_path: Path = windows_relative_path or relative_path
+    windows_path = self._build_windows_path(mapping)
+    if windows_path is not None:
       base_remote_path = remote_relative_path if remote_relative_path else relative_path
       remote_relative_path_win = self._build_suffix_path(base_remote_path, ".windows")
       tasks.append(
         RsyncTask(
           src=self._build_remote_path(remote_relative_path_win),
-          dest=self.config.windows_user_dir / windows_specific_relative_path,
+          dest=windows_path,
           description=f"Remote to Windows: {description}",
           is_directory=is_directory,
         )
       )
 
     return tasks
+
+  def _build_linux_path(self, mapping: FileMapping) -> Path:
+    """Resolve the Linux path from the mapping."""
+    linux_path = mapping.linux_override_path or mapping.relative_path
+    if linux_path.is_absolute():
+      return linux_path
+    return self.config.local_home / linux_path
+
+  def _build_windows_path(self, mapping: FileMapping) -> Optional[Path]:
+    """Resolve the Windows path from the mapping when Windows sync is enabled."""
+    if self.config.windows_user_dir is None:
+      return None
+    windows_path = mapping.windows_override_path or mapping.relative_path
+    if windows_path.is_absolute():
+      return windows_path
+    return self.config.windows_user_dir / windows_path
 
   def _build_remote_path(
     self, relative_path: Path, custom_relative_path: Optional[Path] = None

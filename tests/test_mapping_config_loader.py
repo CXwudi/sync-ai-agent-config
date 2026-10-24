@@ -19,7 +19,7 @@ from sync_ai_config.models import FileMappingConfig, KeepMode
 
 CUSTOM_CONFIG = """
 [[mappings]]
-path = ".custom/config.json"
+relative_path = ".custom/config.json"
 keep_mode = "prefer_linux"
 description = "Custom config"
 """.lstrip()
@@ -36,7 +36,7 @@ def test_read_default_mappings_text_reads_packaged_resource() -> None:
   text = read_default_mappings_text()
 
   assert "[[mappings]]" in text
-  assert 'path = ".agents/skills/"' in text
+  assert 'relative_path = ".agents/skills/"' in text
 
 
 def test_load_default_mappings_matches_manual_parse() -> None:
@@ -76,7 +76,7 @@ def test_load_mappings_from_path_reads_utf8(tmp_path: Path) -> None:
     tmp_path / "utf8-mappings.toml",
     """
 [[mappings]]
-path = ".custom/unicode.json"
+relative_path = ".custom/unicode.json"
 keep_mode = "prefer_linux"
 description = "Unicode café config"
 """.lstrip(),
@@ -143,7 +143,7 @@ keep_mode = "prefer_linux"
 
   message = str(exc_info.value)
   assert str(config_path) in message
-  assert "mappings.0.path" in message
+  assert "mappings.0.relative_path" in message
 
 
 @pytest.mark.parametrize(
@@ -152,7 +152,7 @@ keep_mode = "prefer_linux"
     (
       """
 [[mappings]]
-path = ".custom/config.json"
+relative_path = ".custom/config.json"
 keep_mode = "prefer_linux"
 windowsPath = ".custom/windows.json"
 """.lstrip(),
@@ -161,7 +161,7 @@ windowsPath = ".custom/windows.json"
     (
       """
 [[mappings]]
-path = ".custom/config.json"
+relative_path = ".custom/config.json"
 keep_mode = "prefer_macos"
 """.lstrip(),
       "mappings.0.keep_mode",
@@ -169,18 +169,18 @@ keep_mode = "prefer_macos"
     (
       """
 [[mappings]]
-path = ""
+relative_path = ""
 keep_mode = "prefer_linux"
 """.lstrip(),
-      "mappings.0.path",
+      "mappings.0.relative_path",
     ),
     (
       """
 [[mappings]]
-path = "/tmp/config.json"
+relative_path = "/tmp/config.json"
 keep_mode = "prefer_linux"
 """.lstrip(),
-      "mappings.0.path",
+      "mappings.0.relative_path",
     ),
   ],
 )
@@ -224,9 +224,10 @@ def test_loader_does_not_require_declared_paths_to_exist(tmp_path: Path) -> None
     tmp_path / "nonexistent-paths.toml",
     """
 [[mappings]]
-path = ".definitely/not/a/real/file.json"
-windows_path = "Definitely/Not/Real/file.json"
-remote_path = ".remote/not-real/file.json"
+relative_path = ".definitely/not/a/real/file.json"
+linux_override_path = "/etc/not-real/file.json"
+windows_override_path = "Definitely/Not/Real/file.json"
+remote_relative_path = ".remote/not-real/file.json"
 keep_mode = "prefer_linux"
 """.lstrip(),
   )
@@ -234,5 +235,6 @@ keep_mode = "prefer_linux"
   mappings = load_mappings(config_path)
 
   assert mappings[0].relative_path == Path(".definitely/not/a/real/file.json")
-  assert mappings[0].windows_relative_path == Path("Definitely/Not/Real/file.json")
+  assert mappings[0].linux_override_path == Path("/etc/not-real/file.json")
+  assert mappings[0].windows_override_path == Path("Definitely/Not/Real/file.json")
   assert mappings[0].remote_relative_path == Path(".remote/not-real/file.json")

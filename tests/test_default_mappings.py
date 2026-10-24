@@ -72,7 +72,8 @@ def test_default_mapping_key_compatibility_signals() -> None:
   assert final_mapping.relative_path == Path(
     ".vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"
   )
-  assert final_mapping.windows_relative_path == Path(
+  assert final_mapping.linux_override_path is None
+  assert final_mapping.windows_override_path == Path(
     "AppData/Roaming/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"
   )
   assert final_mapping.remote_relative_path is None
@@ -88,7 +89,8 @@ def test_default_mappings_have_no_absolute_paths() -> None:
   for mapping in load_packaged_default_mappings():
     path_values = [
       mapping.relative_path,
-      mapping.windows_relative_path,
+      mapping.linux_override_path,
+      mapping.windows_override_path,
       mapping.remote_relative_path,
     ]
     for path_value in path_values:

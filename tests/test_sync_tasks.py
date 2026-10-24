@@ -7,7 +7,7 @@ from pathlib import Path
 
 from sync_ai_config.config import Config
 from sync_ai_config.mapping_config import load_default_mappings
-from sync_ai_config.models import RsyncTask
+from sync_ai_config.models import FileMapping, KeepMode, RsyncTask
 from sync_ai_config.task_builder import TaskBuilder
 from sync_ai_config.task_executor import TaskExecutor
 
@@ -106,3 +106,55 @@ def test_dry_run_logs_revised_rsync_commands(caplog) -> None:
   assert ".pi/agent/skills/" not in caplog.text
   assert ".pi/agent/sessions/" not in caplog.text
   assert ".pi/agent/bin/" not in caplog.text
+
+
+def test_task_builder_supports_relative_and_absolute_override_paths() -> None:
+  """Override paths should resolve relative to base dirs or stay absolute."""
+  config = build_config()
+  builder = TaskBuilder(config)
+
+  relative_override_mapping = FileMapping(
+    relative_path=Path(".tool/config.json"),
+    linux_override_path=Path(".config/tool/config.json"),
+    windows_override_path=Path("AppData/Roaming/Tool/config.json"),
+    remote_relative_path=Path(".remote/tool/config.json"),
+    keep_mode=KeepMode.PREFER_LINUX,
+    description="Relative override tool",
+  )
+  absolute_override_mapping = FileMapping(
+    relative_path=Path(".tool/system.json"),
+    linux_override_path=Path("/etc/tool/system.json"),
+    windows_override_path=Path("/mnt/c/ProgramData/Tool/system.json"),
+    keep_mode=KeepMode.KEEP_BOTH,
+    description="Absolute override tool",
+  )
+
+  push_tasks = builder.build_push_tasks(
+    [relative_override_mapping, absolute_override_mapping]
+  )
+  pull_tasks = builder.build_pull_tasks(
+    [relative_override_mapping, absolute_override_mapping]
+  )
+
+  assert push_tasks[0].src == config.local_home / ".config/tool/config.json"
+  assert push_tasks[0].dest == Path(
+    "/mnt/c/Users/WindowsUser/AppData/Roaming/Tool/config.json"
+  )
+  assert (
+    push_tasks[1].dest
+    == "sync-user@example.com:~/sync-files/ai-agents-related/.remote/tool/config.json"
+  )
+
+  assert push_tasks[2].src == Path("/mnt/c/ProgramData/Tool/system.json")
+  assert (
+    push_tasks[2].dest
+    == "sync-user@example.com:~/sync-files/ai-agents-related/.tool/system.windows.json"
+  )
+  assert push_tasks[3].src == Path("/etc/tool/system.json")
+  assert (
+    push_tasks[3].dest
+    == "sync-user@example.com:~/sync-files/ai-agents-related/.tool/system.linux.json"
+  )
+
+  assert pull_tasks[2].dest == Path("/etc/tool/system.json")
+  assert pull_tasks[3].dest == Path("/mnt/c/ProgramData/Tool/system.json")

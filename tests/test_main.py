@@ -17,7 +17,7 @@ def write_mapping_config(path: Path, mapping_path: str) -> Path:
   path.write_text(
     f"""
 [[mappings]]
-path = "{mapping_path}"
+relative_path = "{mapping_path}"
 keep_mode = "prefer_linux"
 description = "Custom mapping"
 """.lstrip(),

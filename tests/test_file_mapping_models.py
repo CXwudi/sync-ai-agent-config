@@ -13,7 +13,7 @@ from sync_ai_config.models import FileMapping, FileMappingConfig, KeepMode
 def mapping_entry(**overrides: object) -> dict[str, object]:
   """Create a valid TOML-shaped mapping dictionary for tests."""
   entry: dict[str, object] = {
-    "path": ".agents/skills/",
+    "relative_path": ".agents/skills/",
     "keep_mode": "prefer_linux",
   }
   entry.update(overrides)
@@ -33,15 +33,16 @@ def assert_validation_error_location(
   assert expected_location in validation_error_locations(error)
 
 
-def test_file_mapping_config_accepts_toml_aliases() -> None:
-  """TOML-facing aliases should parse into runtime mapping fields."""
+def test_file_mapping_config_accepts_toml_fields() -> None:
+  """TOML mapping fields should parse into runtime mapping fields."""
   config = FileMappingConfig.model_validate(
     {
       "mappings": [
         mapping_entry(
-          path=".tools/config.toml",
-          windows_path="AppData/Roaming/Tool/config.toml",
-          remote_path=".tools/remote-config.toml",
+          relative_path=".tools/config.toml",
+          linux_override_path=".config/tool/config.toml",
+          windows_override_path="AppData/Roaming/Tool/config.toml",
+          remote_relative_path=".tools/remote-config.toml",
           keep_mode="keep_both",
           is_directory=True,
           description="Tool config",
@@ -53,19 +54,21 @@ def test_file_mapping_config_accepts_toml_aliases() -> None:
   mapping = config.mappings[0]
 
   assert mapping.relative_path == Path(".tools/config.toml")
-  assert mapping.windows_relative_path == Path("AppData/Roaming/Tool/config.toml")
+  assert mapping.linux_override_path == Path(".config/tool/config.toml")
+  assert mapping.windows_override_path == Path("AppData/Roaming/Tool/config.toml")
   assert mapping.remote_relative_path == Path(".tools/remote-config.toml")
   assert mapping.keep_mode == KeepMode.KEEP_BOTH
   assert mapping.is_directory is True
   assert mapping.description == "Tool config"
 
 
-def test_file_mapping_accepts_internal_field_names() -> None:
-  """Internal field names should still work for runtime helpers."""
+def test_file_mapping_accepts_path_objects() -> None:
+  """Path objects should work for runtime helpers."""
   mapping = FileMapping.model_validate(
     {
       "relative_path": Path(".codex/config.toml"),
-      "windows_relative_path": Path(".codex/config.toml"),
+      "linux_override_path": Path("/etc/codex/config.toml"),
+      "windows_override_path": Path("/mnt/c/ProgramData/codex/config.toml"),
       "remote_relative_path": Path(".codex/config.remote.toml"),
       "keep_mode": KeepMode.PREFER_WINDOWS,
       "is_directory": False,
@@ -74,7 +77,8 @@ def test_file_mapping_accepts_internal_field_names() -> None:
   )
 
   assert mapping.relative_path == Path(".codex/config.toml")
-  assert mapping.windows_relative_path == Path(".codex/config.toml")
+  assert mapping.linux_override_path == Path("/etc/codex/config.toml")
+  assert mapping.windows_override_path == Path("/mnt/c/ProgramData/codex/config.toml")
   assert mapping.remote_relative_path == Path(".codex/config.remote.toml")
   assert mapping.keep_mode == KeepMode.PREFER_WINDOWS
 
@@ -82,11 +86,12 @@ def test_file_mapping_accepts_internal_field_names() -> None:
 def test_file_mapping_defaults_optional_fields() -> None:
   """Optional mapping fields should default like the old dataclass did."""
   mapping = FileMappingConfig.model_validate(
-    {"mappings": [mapping_entry(path=".claude.json", keep_mode="keep_both")]}
+    {"mappings": [mapping_entry(relative_path=".claude.json", keep_mode="keep_both")]}
   ).mappings[0]
 
   assert mapping.relative_path == Path(".claude.json")
-  assert mapping.windows_relative_path is None
+  assert mapping.linux_override_path is None
+  assert mapping.windows_override_path is None
   assert mapping.remote_relative_path is None
   assert mapping.keep_mode == KeepMode.KEEP_BOTH
   assert mapping.is_directory is False
@@ -145,7 +150,15 @@ def test_is_directory_requires_boolean() -> None:
   assert_validation_error_location(exc_info.value, ("mappings", 0, "is_directory"))
 
 
-@pytest.mark.parametrize("field_name", ["path", "windows_path", "remote_path"])
+@pytest.mark.parametrize(
+  "field_name",
+  [
+    "relative_path",
+    "linux_override_path",
+    "windows_override_path",
+    "remote_relative_path",
+  ],
+)
 @pytest.mark.parametrize("path_value", ["", "   "])
 def test_empty_path_values_are_rejected(
   field_name: str,
@@ -160,22 +173,63 @@ def test_empty_path_values_are_rejected(
   assert_validation_error_location(exc_info.value, ("mappings", 0, field_name))
 
 
-@pytest.mark.parametrize("field_name", ["path", "windows_path", "remote_path"])
+@pytest.mark.parametrize("field_name", ["relative_path", "remote_relative_path"])
+def test_absolute_paths_are_rejected_for_relative_only_fields(
+  field_name: str,
+) -> None:
+  """relative_path and remote_relative_path must be relative fragments."""
+  with pytest.raises(ValidationError) as exc_info:
+    FileMappingConfig.model_validate(
+      {"mappings": [mapping_entry(**{field_name: "/opt/config.json"})]}
+    )
+
+  assert_validation_error_location(exc_info.value, ("mappings", 0, field_name))
+
+
+@pytest.mark.parametrize("field_name", ["linux_override_path", "windows_override_path"])
 @pytest.mark.parametrize(
   "path_value",
   [
+    ".custom/config.json",
     "/opt/config.json",
+    "/mnt/c/ProgramData/Tool/config.json",
+  ],
+)
+def test_override_paths_accept_relative_and_posix_absolute_paths(
+  field_name: str,
+  path_value: str,
+) -> None:
+  """Override path fields should support both relative and POSIX absolute paths."""
+  mapping = FileMappingConfig.model_validate(
+    {"mappings": [mapping_entry(**{field_name: path_value})]}
+  ).mappings[0]
+
+  assert getattr(mapping, field_name) == Path(path_value)
+
+
+@pytest.mark.parametrize(
+  "field_name",
+  [
+    "relative_path",
+    "linux_override_path",
+    "windows_override_path",
+    "remote_relative_path",
+  ],
+)
+@pytest.mark.parametrize(
+  "path_value",
+  [
     "C:/Users/me/config.json",
     r"C:\Users\me\config.json",
     "C:Users/me/config.json",
     r"\Users\me\config.json",
   ],
 )
-def test_absolute_or_drive_qualified_paths_are_rejected(
+def test_drive_qualified_or_backslash_rooted_paths_are_rejected(
   field_name: str,
   path_value: str,
 ) -> None:
-  """Path values should be relative fragments, not absolute paths."""
+  """Windows drive-qualified or backslash-rooted paths should be rejected."""
   with pytest.raises(ValidationError) as exc_info:
     FileMappingConfig.model_validate(
       {"mappings": [mapping_entry(**{field_name: path_value})]}
@@ -184,12 +238,21 @@ def test_absolute_or_drive_qualified_paths_are_rejected(
   assert_validation_error_location(exc_info.value, ("mappings", 0, field_name))
 
 
-@pytest.mark.parametrize("field_name", ["path", "windows_path", "remote_path"])
+@pytest.mark.parametrize(
+  "field_name",
+  [
+    "relative_path",
+    "linux_override_path",
+    "windows_override_path",
+    "remote_relative_path",
+  ],
+)
 @pytest.mark.parametrize(
   "path_value",
   [
     "../config.json",
     ".config/../secrets.json",
+    "/opt/../secrets.json",
     r"..\config.json",
     r".config\..\secrets.json",
   ],
@@ -198,7 +261,7 @@ def test_parent_directory_path_fragments_are_rejected(
   field_name: str,
   path_value: str,
 ) -> None:
-  """Path values should not escape their configured base directory."""
+  """Path values should not contain parent-directory traversal segments."""
   with pytest.raises(ValidationError) as exc_info:
     FileMappingConfig.model_validate(
       {"mappings": [mapping_entry(**{field_name: path_value})]}
@@ -210,7 +273,11 @@ def test_parent_directory_path_fragments_are_rejected(
 def test_trailing_slash_does_not_imply_directory_mapping() -> None:
   """Directory behavior should come from is_directory, not path syntax."""
   mapping = FileMappingConfig.model_validate(
-    {"mappings": [mapping_entry(path=".agents/skills/", keep_mode="prefer_linux")]}
+    {
+      "mappings": [
+        mapping_entry(relative_path=".agents/skills/", keep_mode="prefer_linux")
+      ]
+    }
   ).mappings[0]
 
   assert mapping.relative_path == Path(".agents/skills")

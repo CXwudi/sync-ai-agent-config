@@ -28,28 +28,34 @@ class FileMapping(BaseModel):
   """
   Windows, Linux, Remote, 3-way file mapping.
 
-  For Windows and Linux, paths are relative to the home directory.
-  For Remote, paths are relative to a remote directory specified in the config.
+  `relative_path` is the default path relative to Linux home, Windows user dir,
+  and the remote base directory.
+  `linux_override_path` and `windows_override_path` can override the Linux or
+  Windows path with either a relative path or a POSIX absolute path.
+  `remote_relative_path` can override the remote path relative to the remote
+  base directory.
   """
 
-  model_config = ConfigDict(populate_by_name=True, extra="forbid")
+  model_config = ConfigDict(extra="forbid")
 
-  relative_path: Path = Field(alias="path")
-  windows_relative_path: Path | None = Field(default=None, alias="windows_path")
-  remote_relative_path: Path | None = Field(default=None, alias="remote_path")
+  relative_path: Path
+  linux_override_path: Path | None = None
+  windows_override_path: Path | None = None
+  remote_relative_path: Path | None = None
   keep_mode: KeepMode
   is_directory: bool = Field(default=False, strict=True)
   description: str = ""
 
   @field_validator(
     "relative_path",
-    "windows_relative_path",
+    "linux_override_path",
+    "windows_override_path",
     "remote_relative_path",
     mode="before",
   )
   @classmethod
-  def _validate_relative_path_fragment(cls, value: object) -> object:
-    """Reject empty and absolute path fragments before Path coercion."""
+  def _validate_path_common(cls, value: object) -> object:
+    """Reject empty, Windows drive-qualified, and parent-traversal paths."""
     if value is None:
       return value
 
@@ -65,18 +71,36 @@ class FileMapping(BaseModel):
 
     path = Path(path_text)
     windows_path = PureWindowsPath(path_text)
-    if (
-      path.is_absolute()
-      or windows_path.is_absolute()
-      or windows_path.drive
-      or windows_path.root
-    ):
-      raise ValueError("Path values must be relative path fragments")
+    if windows_path.is_absolute() or windows_path.drive or path_text.startswith("\\"):
+      raise ValueError(
+        "Path values must not be Windows drive-qualified or backslash-rooted paths"
+      )
 
     if ".." in path.parts or ".." in windows_path.parts:
-      raise ValueError(
-        "Path values must be relative path fragments without parent-directory (..) segments"
-      )
+      raise ValueError("Path values must not contain parent-directory (..) segments")
+
+    return value
+
+  @field_validator(
+    "relative_path",
+    "remote_relative_path",
+    mode="before",
+  )
+  @classmethod
+  def _validate_relative_only_path(cls, value: object) -> object:
+    """Reject absolute paths for fields that must stay relative."""
+    if value is None:
+      return value
+
+    if isinstance(value, str):
+      path_text = value
+    elif isinstance(value, Path):
+      path_text = str(value)
+    else:
+      return value
+
+    if Path(path_text).is_absolute():
+      raise ValueError("Path values must be relative path fragments")
 
     return value
 
