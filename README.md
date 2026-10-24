@@ -9,7 +9,7 @@ It uses `rsync` under the hood.
 
 - `rsync` (>= 3.2.3, for `--mkpath` support)
 - [uv](https://docs.astral.sh/uv/)
-- [just](https://github.com/casey/just) (for development)
+- [mise](https://mise.jdx.dev/) (for development)
 
 ## Quick Setup
 
@@ -92,11 +92,11 @@ uv run sync-ai-config push --config ~/my-sync-mappings.toml
 
 ```bash
 uv sync
-just test       # Run tests
-just typecheck  # Type check with ty
-just lint       # Lint with ruff
-just format     # Format with ruff
-just build-exe  # Build a single-file executable
+mise run test       # Run tests
+mise run typecheck  # Type check with ty
+mise run lint       # Lint with ruff
+mise run format     # Format with ruff
+mise run build-exe  # Build a single-file executable
 ```
 
 ## Notes

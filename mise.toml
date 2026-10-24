@@ -1,0 +1,19 @@
+[tasks.test]
+description = "Run tests"
+run = "uv run pytest tests"
+
+[tasks.typecheck]
+description = "Type check"
+run = "uv run ty check src/sync_ai_config tests"
+
+[tasks.lint]
+description = "Lint"
+run = "uv run ruff check ."
+
+[tasks.format]
+description = "Format"
+run = "uv run ruff format ."
+
+[tasks.build-exe]
+description = "Build executable"
+run = "uv run pyinstaller src/sync_ai_config/main.py --name sync-ai-config --onefile --add-data src/sync_ai_config/default_mappings.toml:sync_ai_config"
